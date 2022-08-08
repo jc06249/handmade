@@ -4,10 +4,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "handmade",
+            "label": "build",
             "type": "shell",
             "command": "p:\\handmade\\code\\build.bat",
-            "args": [""],
             "group": {
                 "kind": "build",
                 "isDefault": true
