@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <xinput.h>
 #include <dsound.h>
 #include <math.h>
@@ -253,7 +254,7 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message, WPARAM WPara
         }
 
         default:{
-            OutputDebugStringA("default\n");
+            // OutputDebugStringA("default\n");
             Result = DefWindowProcA(Window, Message, WParam, LParam);
         } break;
     }
@@ -310,7 +311,13 @@ internal void win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteTo
 }
 
 int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLine, int ShowCode){
+
+    LARGE_INTEGER PerfCountFrequencyResult;
+    QueryPerformanceFrequency(&PerfCountFrequencyResult);
+    int64 PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
+
     Win32LoadXInput();
+
     WNDCLASSA WindowClass = {};
 
     Win32ResizeDIBSection(&GlobalBackBuffer ,1280, 720);
@@ -343,6 +350,11 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
             GlobalRunning = true;
+
+            LARGE_INTEGER LastCounter;
+            QueryPerformanceCounter(&LastCounter);
+            uint64 LastCycleCount = __rdtsc();
+
             while(GlobalRunning){
 
                 MSG Message;
@@ -378,7 +390,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         XOffSet += StickX >> 12;
                         YOffSet += StickY >> 12;
 
-                        SoundOutput.ToneHz = 512 + (int)(256.0f*((float)StickY / 30000.0f));
+                        SoundOutput.ToneHz = 512 + (int)(256.0f*((float)StickY / 3000.0f));
                         SoundOutput.WavePeriod = SoundOutput.SamplesPerSecond / SoundOutput.ToneHz;
 
                     }
@@ -413,6 +425,24 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
 
                 win32_window_dimension Dimention = Win32GetWindowDimension(Window);
                 Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext, Dimention.Width, Dimention.Height);
+
+                uint64 EndtCycleCount = __rdtsc();
+
+                LARGE_INTEGER EndCounter;
+                QueryPerformanceCounter(&EndCounter);
+
+                uint64 CyclesElapsed = EndtCycleCount - LastCycleCount;
+                int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+                float MSPerFrame = ((1000.0f * (float)CounterElapsed) / (float)PerfCountFrequency);
+                float FPS = (float)PerfCountFrequency / (float)CounterElapsed;
+                float MCPF = ((float)CyclesElapsed / (1000.0f * 1000.0f));
+
+                char Buffer[256];
+                sprintf(Buffer, "%.02fms/f - %.02fFPS - %.02fmc/f\n", MSPerFrame, FPS, MCPF);
+                OutputDebugStringA(Buffer);
+
+                LastCounter = EndCounter;
+                LastCycleCount = EndtCycleCount;
             }
         }
         else{
