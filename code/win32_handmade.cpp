@@ -1,15 +1,10 @@
-#include <windows.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <xinput.h>
-#include <dsound.h>
-#include <math.h>
 
 #define internal static
 #define local_persist static
 #define global_variable static
 
-#define Pi32 3.14
+#define Pi32 3.14159265359f
 
 typedef int8_t int8;
 typedef int16_t int16;
@@ -21,6 +16,15 @@ typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
+
+#include "handmade.cpp"
+
+#include <windows.h>
+#include <stdio.h>
+#include <xinput.h>
+#include <dsound.h>
+
+#include <math.h>
 
 struct Win32_offscreen_buffer{
     BITMAPINFO Info;
@@ -132,23 +136,7 @@ internal win32_window_dimension Win32GetWindowDimension(HWND Window){
     return(Result);
 }
 
-internal void RenderWeirdGradient(Win32_offscreen_buffer *Buffer, int BlueOffSet, int GreenOffSet){
 
-
-    uint8 *Row = (uint8 *)Buffer->Memory;
-    for(int Y = 0; Y < Buffer->Height; ++Y){
-        uint32 *Pixel = (uint32 *)Row;
-        for(int X = 0; X < Buffer->Width; ++X){
-
-            uint8 Blue = (X + BlueOffSet);
-            uint8 Green = (Y + GreenOffSet);
-
-            *Pixel++ = ((Green << 8) | Blue);
-        }
-
-        Row += Buffer->Pitch;
-    }
-}
 
 internal void Win32ResizeDIBSection(Win32_offscreen_buffer *Buffer, int Width, int Height){
 
@@ -404,7 +392,12 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 Virbration.wRightMotorSpeed = 60000;
                 XInputSetState(0, &Virbration);
 
-                RenderWeirdGradient(&GlobalBackBuffer, XOffSet, YOffSet);
+                game_offscreen_buffer Buffer = {};
+                Buffer.Memory = GlobalBackBuffer.Memory;
+                Buffer.Width = GlobalBackBuffer.Width;
+                Buffer.Height = GlobalBackBuffer.Height;
+                Buffer.Pitch = GlobalBackBuffer.Pitch;
+                GameUpdateAndRender(&Buffer, XOffSet, YOffSet);
 
                 DWORD PlayCursor;
                 DWORD WriteCursor;
@@ -436,11 +429,11 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 float MSPerFrame = ((1000.0f * (float)CounterElapsed) / (float)PerfCountFrequency);
                 float FPS = (float)PerfCountFrequency / (float)CounterElapsed;
                 float MCPF = ((float)CyclesElapsed / (1000.0f * 1000.0f));
-
+#if 0
                 char Buffer[256];
                 sprintf(Buffer, "%.02fms/f - %.02fFPS - %.02fmc/f\n", MSPerFrame, FPS, MCPF);
                 OutputDebugStringA(Buffer);
-
+#endif
                 LastCounter = EndCounter;
                 LastCycleCount = EndtCycleCount;
             }
