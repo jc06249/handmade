@@ -5,7 +5,7 @@ set path=p:\handmade\misc;%path%
 
 REM W4 switch
 set CommonCompilerFlags=-MT -nologo -Gm- -GR- -EHsc -EHa- -Od -Oi -WX -W3 -wd4201 -wd4100 -wd4189 -DHANDMADE_INTERNAL=1 -DHANDMADE_SLOW=1 -DHANDMADE_WIN32=1 -FC -Z7 -Fmwin32_handmade.map
-set CommonLinkerFlags=-opt:ref -subsystem:windows user32.lib gdi32.lib
+set CommonLinkerFlags=-opt:ref -subsystem:windows user32.lib gdi32.lib winmm.lib
 
 IF NOT EXIST ..\..\build mkdir ..\..\build
 pushd ..\..\build
