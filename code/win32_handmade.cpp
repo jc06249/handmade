@@ -194,7 +194,7 @@ internal void Win32InitSound(HWND Window, int32 SamplesPerSecond, int32 BufferSi
 internal win32_window_dimension Win32GetWindowDimension(HWND Window){
 
     win32_window_dimension Result;
-    
+
     RECT ClientRect;
     GetClientRect(Window, &ClientRect);
     Result.Width = ClientRect.right - ClientRect.left;
@@ -244,6 +244,11 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message, WPARAM WPara
 
         case WM_ACTIVATEAPP:{
             OutputDebugStringA("WM_ACTIVATEAPP\n");
+            if(WParam == TRUE){
+                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 255, LWA_ALPHA);
+            }else{
+                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 64, LWA_ALPHA);
+            }
         } break;
 
         case WM_DESTROY: {
@@ -267,7 +272,7 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message, WPARAM WPara
             int Width = Paint.rcPaint.right - Paint.rcPaint.left;
 
             win32_window_dimension Dimention = Win32GetWindowDimension(Window);
-            
+
             Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext, Dimention.Width ,Dimention.Height);
             EndPaint(Window, &Paint);
         }
@@ -350,7 +355,62 @@ internal float Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneThreshhol
     return(Result);
 }
 
-internal void Win32ProcessPendingMessages(game_controller_input *KeyboardController){
+internal void Win32BeginRecordingInput(win32_state *Win32State, int InputRecordingIndex){
+
+    Win32State->InputRecordingIndex = InputRecordingIndex;
+
+    // TODO: These files must go in a temporory/build directory!
+    // TODO: Lazily wite the giant memory block and use a memory copy instead?
+    char *FileName = "foo.hmi";
+    Win32State->RecordingHandle = CreateFileA(FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    DWORD BytesToWrite = (DWORD)Win32State->TotalSize;
+    // Assert(Win32State->TotalSize == BytesToWrite);
+    DWORD BytesWritten;
+    WriteFile(Win32State->RecordingHandle, Win32State->GameMemoryBlock, BytesToWrite,  &BytesWritten, 0);
+}
+
+internal void Win32EndRecordingInput(win32_state *Win32State){
+    CloseHandle(Win32State->RecordingHandle);
+    Win32State->InputRecordingIndex = 0;
+}
+
+internal void Win32BeginInputPlayBack(win32_state *Win32State, int InputPlayingIndex){
+
+    Win32State->InputPlayingIndex = InputPlayingIndex;
+
+    char *FileName = "foo.hmi";
+    Win32State->PlayBackHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    DWORD BytesToRead = (DWORD)Win32State->TotalSize;
+    // Assert(Win32State->TotalSize == BytesToRead);
+    DWORD BytesRead;
+    ReadFile(Win32State->PlayBackHandle, Win32State->GameMemoryBlock, BytesToRead, &BytesRead, 0);
+}
+
+internal void Win32EndInputPlayBack(win32_state *Win32State){
+    CloseHandle(Win32State->PlayBackHandle);
+    Win32State->InputPlayingIndex = 0;
+}
+
+internal void Win32RecordInput(win32_state *Win32State, game_input *NewInput){
+
+    DWORD BytesWritten;
+    WriteFile(Win32State->RecordingHandle, NewInput, sizeof(*NewInput), &BytesWritten, 0);
+}
+
+internal void Win32PlayBackInput(win32_state *Win32State, game_input *NewInput){
+
+    DWORD BytesRead = 0;
+    if(ReadFile(Win32State->PlayBackHandle, NewInput, sizeof(*NewInput), &BytesRead, 0)){
+        if(BytesRead == 0){
+            int PlayingIndex = Win32State->InputPlayingIndex;
+            Win32EndInputPlayBack(Win32State);
+            Win32BeginInputPlayBack(Win32State, PlayingIndex);
+            ReadFile(Win32State->PlayBackHandle, NewInput, sizeof(*NewInput), &BytesRead, 0);
+        }
+    }
+}
+
+internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controller_input *KeyboardController){
     MSG Message;
 
     while(PeekMessage(&Message, 0, 0, 0, PM_REMOVE)){
@@ -397,6 +457,17 @@ internal void Win32ProcessPendingMessages(game_controller_input *KeyboardControl
                     else if(VKCode == 'P'){
                         if(IsDown){
                             GlobalPause = !GlobalPause;
+                        }
+                    }else if(VKCode == 'L'){
+                        if(IsDown){
+                            if(Win32State->InputRecordingIndex == 0){
+                                Win32BeginRecordingInput(Win32State, 1);
+                                Win32State->InputRecordingIndex = 1;
+                            }
+                            else{
+                                Win32EndRecordingInput(Win32State);
+                                Win32BeginInputPlayBack(Win32State, 1);
+                            }
                         }
                     }
 #endif
@@ -460,7 +531,7 @@ internal void Win32DebugSyncDisplay(Win32_offscreen_buffer *BackBuffer, int Mark
 
     float C = (float)(BackBuffer->Width - 2 * PadX) / (float)SoundOutput->SecondaryBufferSize;
     for(int MarkerIndex = 0; MarkerIndex < MarkerCount; ++MarkerIndex){
-        
+
         win32_debug_time_marker *ThisMarker = &Markers[MarkerIndex];
         Assert(ThisMarker->OutputPlayCursor < SoundOutput->SecondaryBufferSize);
         Assert(ThisMarker->OutputWriteCursor < SoundOutput->SecondaryBufferSize);
@@ -488,7 +559,7 @@ internal void Win32DebugSyncDisplay(Win32_offscreen_buffer *BackBuffer, int Mark
 
             Top += LineHeight + PadY;
             Bottom += LineHeight + PadY;
-            
+
             Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputLocation, PlayColour);
             Win32DrawSoundBufferMarker(BackBuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->OutputLocation + ThisMarker->OutputByteCount, WriteColour);
 
@@ -558,10 +629,10 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
     float TargetSecondsPerFrame = 1.0f / (float)GameUpdateHz;
 
     if(RegisterClassA(&WindowClass)){
-        HWND Window = CreateWindowExA(0, WindowClass.lpszClassName, "Handmake Hero", WS_OVERLAPPEDWINDOW|WS_VISIBLE|CS_OWNDC, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0); 
+        HWND Window = CreateWindowExA(WS_EX_TOPMOST|WS_EX_LAYERED, WindowClass.lpszClassName, "Handmake Hero", WS_OVERLAPPEDWINDOW|WS_VISIBLE|CS_OWNDC, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
 
         if(Window){
-            HDC DeviceContext = GetDC(Window);
+
             win32_sound_output SoundOutput = {};
 
             // TODO: Make this like sixty seconds?
@@ -577,6 +648,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             win32ClearBuffer(&SoundOutput);
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
+            win32_state Win32State = {};
             GlobalRunning = true;
 
             int16 *Samples = (int16 *)VirtualAlloc(0, SoundOutput.SecondaryBufferSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
@@ -594,8 +666,9 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             GameMemory.DEBUGPlatformReadEntireFile = DEBUGPlatformReadEntireFile;
             GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
 
-            uint64 TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
-            GameMemory.PermanentStorage = VirtualAlloc(BaseAddress, (size_t)TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+            Win32State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
+            Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+            GameMemory.PermanentStorage = Win32State.GameMemoryBlock;
             GameMemory.TransientStorage = ((uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 
             if(Samples && GameMemory.PermanentStorage && GameMemory.TransientStorage){
@@ -635,7 +708,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         NewKeyboardController->Buttons[ButtonIndex].EndedDown = OldKeyboardController->Buttons[ButtonIndex].EndedDown;
                     }
 
-                    Win32ProcessPendingMessages(NewKeyboardController);
+                    Win32ProcessPendingMessages(&Win32State, NewKeyboardController);
 
                     if(!GlobalPause){
                         DWORD MaxControllerCount = XUSER_MAX_COUNT;
@@ -643,7 +716,6 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                             MaxControllerCount = ArrayCount(NewInput->Controllers) - 1;
                         }
                         for(DWORD ControllerIndex = 0; ControllerIndex < MaxControllerCount; ControllerIndex++){
-
                             DWORD OurControllerIndex = ControllerIndex + 1;
                             game_controller_input *OldController = GetController(OldInput, OurControllerIndex);
                             game_controller_input *NewController = GetController(NewInput, OurControllerIndex);
@@ -701,6 +773,15 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         Buffer.Width = GlobalBackBuffer.Width;
                         Buffer.Height = GlobalBackBuffer.Height;
                         Buffer.Pitch = GlobalBackBuffer.Pitch;
+                        Buffer.BytesPerPixel = GlobalBackBuffer.BytesPerPixel;
+
+                        if(Win32State.InputRecordingIndex){
+                            Win32RecordInput(&Win32State, NewInput);
+                        }
+                        if(Win32State.InputPlayingIndex){
+                            Win32PlayBackInput(&Win32State, NewInput);
+                        }
+
                         Game.UpdateAndRender(&GameMemory, NewInput, &Buffer);
 
                         LARGE_INTEGER AudioWallClock = Win32GetWallClock();
@@ -808,12 +889,14 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         LARGE_INTEGER EndCounter = Win32GetWallClock();
                         float MSPerFrame = 1000.0f * Win32GetSecondsElapsed(LastCounter, EndCounter);
                         LastCounter = EndCounter;
-                        
+
                         win32_window_dimension Dimention = Win32GetWindowDimension(Window);
 #if HANDMADE_INTERNAL
                         Win32DebugSyncDisplay(&GlobalBackBuffer, ArrayCount(DebugTimeMarkers), DebugTimeMarkers, DebugTimeMarkerIndex - 1, &SoundOutput, TargetSecondsPerFrame);
 #endif
+                        HDC DeviceContext = GetDC(Window);
                         Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext, Dimention.Width, Dimention.Height);
+                        ReleaseDC(Window, DeviceContext);
 
                         FlipWallClock = Win32GetWallClock();
 #if HANDMADE_INTERNAL

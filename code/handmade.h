@@ -72,6 +72,7 @@ struct game_offscreen_buffer{
     int Width;
     int Height;
     int Pitch;
+    int BytesPerPixel;
 };
 
 struct game_sound_output_buffer{
@@ -156,7 +157,11 @@ struct game_state{
     int ToneHz;
     int GreenOffset;
     int BlueOffset;
+    
     float tSine;
+
+    int PlayerX;
+    int PlayerY;
 };
 
 #define HANDMADE_H
