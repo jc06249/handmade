@@ -44,7 +44,36 @@ inline game_controller_input *GetController(game_input *Input, int unsigned Cont
     return(Result);
 }
 
+struct canonical_position
+{
+    int32 TileMapX;
+    int32 TileMapY;
+
+    int32 TileX;
+    int32 TileY;
+
+    // NOTE: This is tile-relative X and Y
+    // TODO: These are still in pixels... :/
+    float TileRelX;
+    float TileRelY;
+};
+
+// TODO: Is this ever necessary?
+struct raw_position
+{
+    int32 TileMapX;
+    int32 TileMapY;
+
+    float X;
+    float Y;
+};
+
 struct tile_map
+{
+    uint32 *Tiles;
+};
+
+struct world
 {
     int32 CountX;
     int32 CountY;
@@ -54,11 +83,6 @@ struct tile_map
     float TileWidth;
     float TileHeight;
 
-    uint32 *Tiles;
-};
-
-struct world
-{
     int32 TileMapCountX;
     int32 TileMapCountY;
 
@@ -67,6 +91,10 @@ struct world
 
 struct game_state
 {
+    //TODO: Player state should be canonical position now?
+    int32 PlayerTileMapX;
+    int32 PlayerTileMapY;
+
     float PlayerX;
     float PlayerY;
 };
