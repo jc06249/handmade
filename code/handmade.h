@@ -44,6 +44,7 @@ inline game_controller_input *GetController(game_input *Input, int unsigned Cont
     return(Result);
 }
 
+// TODO: This can bbecome "world position" or something similar
 struct canonical_position
 {
     // TODO: Take the tile map X and Y and the tile X and Y.
@@ -51,26 +52,21 @@ struct canonical_position
     //       where there is some low bits for the tile index and
     //       the high bits are the file "page"
 
+#if 1
     int32 TileMapX;
     int32 TileMapY;
 
     int32 TileX;
     int32 TileY;
+#else
+    uint32 _TileX;
+    uint32 _TileY;
+#endif
 
-    // TODO: Convert there to math-friendly, resolution respresentation of
-    //       world units relative to a tile.
+    // TODO: Y should go up!
+    // TODO: Should these be from the center of the tile?
     float TileRelX;
     float TileRelY;
-};
-
-// TODO: Is this ever necessary?
-struct raw_position
-{
-    int32 TileMapX;
-    int32 TileMapY;
-
-    float X;
-    float Y;
 };
 
 struct tile_map
@@ -83,6 +79,7 @@ struct world
 
     float TileSideInMeters;
     int32 TileSideInPixels;
+    float MetersToPixels;
 
     int32 CountX;
     int32 CountY;
@@ -98,12 +95,7 @@ struct world
 
 struct game_state
 {
-    //TODO: Player state should be canonical position now?
-    int32 PlayerTileMapX;
-    int32 PlayerTileMapY;
-
-    float PlayerX;
-    float PlayerY;
+    canonical_position PlayerP;
 };
 
 #define HANDMADE_H
