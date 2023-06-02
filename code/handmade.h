@@ -46,14 +46,19 @@ inline game_controller_input *GetController(game_input *Input, int unsigned Cont
 
 struct canonical_position
 {
+    // TODO: Take the tile map X and Y and the tile X and Y.
+    //       and pack them into the single 32-bit values for X and Y
+    //       where there is some low bits for the tile index and
+    //       the high bits are the file "page"
+
     int32 TileMapX;
     int32 TileMapY;
 
     int32 TileX;
     int32 TileY;
 
-    // NOTE: This is tile-relative X and Y
-    // TODO: These are still in pixels... :/
+    // TODO: Convert there to math-friendly, resolution respresentation of
+    //       world units relative to a tile.
     float TileRelX;
     float TileRelY;
 };
@@ -75,13 +80,15 @@ struct tile_map
 
 struct world
 {
+
+    float TileSideInMeters;
+    int32 TileSideInPixels;
+
     int32 CountX;
     int32 CountY;
 
     float UpperLeftX;
     float UpperLeftY;
-    float TileWidth;
-    float TileHeight;
 
     int32 TileMapCountX;
     int32 TileMapCountY;

@@ -1,4 +1,5 @@
 #include "handmade.h"
+#include "handmade_intrinsics.h"
 
 internal void GameOutputSound(game_state *GameState ,game_sound_output_buffer *SoundBuffer, int ToneHz)
 {
@@ -25,31 +26,6 @@ internal void GameOutputSound(game_state *GameState ,game_sound_output_buffer *S
         }
 #endif
     }
-}
-inline int32 RoundReal32ToInt32(float Real32)
-{
-    int32 Result = (int32)(Real32 + 0.5f);
-    return(Result);
-}
-
-inline uint32 RoundReal32ToUInt32(float Real32)
-{
-    uint32 Result = (uint32)(Real32 + 0.5f);
-    return(Result);
-}
-
-// TODO: How to implement these math functions!!!!!
-#include "math.h"
-inline int32 FloorReal32ToInt32(float Real32)
-{
-    int32 Result = (int32)floorf(Real32);
-    return(Result);
-}
-
-inline int32 TruncateReal32ToInt32(float Real32)
-{
-    int32 Result = (int32)Real32;
-    return(Result);
 }
 
 internal void DrawRectangle(game_offscreen_buffer *Buffer, float RealMinX, float RealMinY, float RealMaxX, float RealMaxY, float R, float G, float B)
@@ -143,16 +119,16 @@ internal canonical_position GetCanonicalizePosition(world *World, raw_position P
 
     real32 X = Pos.X - World->UpperLeftX;
     real32 Y = Pos.Y - World->UpperLeftY;
-    Result.TileX = FloorReal32ToInt32(X / World->TileWidth);
-    Result.TileY = FloorReal32ToInt32(Y / World->TileHeight);
+    Result.TileX = FloorReal32ToInt32(X / World->TileSideInPixels);
+    Result.TileY = FloorReal32ToInt32(Y / World->TileSideInPixels);
 
-    Result.TileRelX = X - Result.TileX*World->TileWidth;
-    Result.TileRelY = Y - Result.TileY*World->TileHeight;
+    Result.TileRelX = X - Result.TileX*World->TileSideInPixels;
+    Result.TileRelY = Y - Result.TileY*World->TileSideInPixels;
 
     Assert(Result.TileRelX >= 0);
     Assert(Result.TileRelY >= 0);
-    Assert(Result.TileRelX < World->TileWidth);
-    Assert(Result.TileRelY < World->TileHeight);
+    Assert(Result.TileRelX < World->TileSideInPixels);
+    Assert(Result.TileRelY < World->TileSideInPixels);
 
     if(Result.TileX < 0)
     {
@@ -265,13 +241,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     World.TileMapCountY = 2;
     World.CountX = TILE_MAP_COUNT_X;
     World.CountY = TILE_MAP_COUNT_Y;
-    World.UpperLeftX = -30;
-    World.UpperLeftY = 0;
-    World.TileWidth = 60;
-    World.TileHeight = 60;
 
-    float PlayerWidth = 0.75f * World.TileWidth;
-    float PlayerHeight = World.TileHeight;
+    // TODO: Begin using tileside in meters
+    World.TileSideInMeters = 1.4f;
+    World.TileSideInPixels = 60;
+
+    World.UpperLeftX = -(real32)World.TileSideInPixels / 2;
+    World.UpperLeftY = 0;
+
+    float PlayerWidth = 0.75f * World.TileSideInPixels;
+    float PlayerHeight = (real32)World.TileSideInPixels;
 
     World.TileMaps = (tile_map *)TileMaps;
 
@@ -339,13 +318,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
                 GameState->PlayerTileMapX = CanPos.TileMapX;
                 GameState->PlayerTileMapY = CanPos.TileMapY;
-                GameState->PlayerX = World.UpperLeftX + World.TileWidth * CanPos.TileX + CanPos.TileRelX;
-                GameState->PlayerY = World.UpperLeftX + World.TileHeight * CanPos.TileY + CanPos.TileRelY;
+                GameState->PlayerX = World.UpperLeftX + World.TileSideInPixels * CanPos.TileX + CanPos.TileRelX;
+                GameState->PlayerY = World.UpperLeftX + World.TileSideInPixels * CanPos.TileY + CanPos.TileRelY;
             }
         }
     }
 
-    DrawRectangle(Buffer, 0.0f, 0.0f, (float)Buffer->Width, (float)Buffer->Height, 1.0f, 0.0f, 0.9f);
+    DrawRectangle(Buffer, 0.0f, 0.0f, (float)Buffer->Width, (float)Buffer->Height, 1.0f, 0.0f, 0.1f);
 
     for(int Row = 0; Row < 9; ++Row)
     {
@@ -358,10 +337,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 Gray = 1.0f;
             }
 
-            float MinX = World.UpperLeftX + ((float)Column) * World.TileWidth;
-            float MinY = World.UpperLeftY + ((float)Row) * World.TileWidth;
-            float MaxX = MinX + World.TileWidth;
-            float MaxY = MinY + World.TileWidth;
+            float MinX = World.UpperLeftX + ((float)Column) * World.TileSideInPixels;
+            float MinY = World.UpperLeftY + ((float)Row) * World.TileSideInPixels;
+            float MaxX = MinX + World.TileSideInPixels;
+            float MaxY = MinY + World.TileSideInPixels;
 
             DrawRectangle(Buffer, MinX, MinY, MaxX, MaxY, Gray, Gray, Gray);
         }
