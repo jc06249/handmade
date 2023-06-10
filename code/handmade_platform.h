@@ -66,8 +66,8 @@ typedef struct game_button_state{
 typedef struct game_controller_input{
     bool32 IsConnected;
     bool32 IsAnalog;
-    float StickAverageX;
-    float StickAverageY;
+    real32 StickAverageX;
+    real32 StickAverageY;
 
     union{
         game_button_state Buttons[12];
@@ -98,7 +98,7 @@ typedef struct game_input{
     game_button_state MouseButtons[5];
     int32 MouseX, MouseY, MouseZ;
 
-    float dtForFrame;
+    real32 dtForFrame;
     game_controller_input Controllers[5];
 } game_input;
 
