@@ -37,6 +37,9 @@ inline uint32 SafeTruncateUInt64(uint64 Value){
     return(Result);
 }
 
+//
+//
+//
 
 inline game_controller_input *GetController(game_input *Input, int unsigned ControllerIndex){
     Assert(ControllerIndex < ArrayCount(Input->Controllers));
@@ -44,55 +47,27 @@ inline game_controller_input *GetController(game_input *Input, int unsigned Cont
     return(Result);
 }
 
-struct tile_chunk_position
+#include "handmade_intrinsics.h"
+#include "handmade_tile.h"
+
+struct memory_arena
 {
-    uint32 TileChunkX;
-    uint32 TileChunkY;
-
-    uint32 RelTileX;
-    uint32 RelTileY;
-};
-
-struct world_position
-{
-    // TODO: Take the tile map X and Y and the tile X and Y.
-    //       and pack them into the single 32-bit values for X and Y
-    //       where there is some low bits for the tile index and
-    //       the high bits are the file "page"
-    uint32 AbsTileX;
-    uint32 AbsTileY;
-
-    // TODO: Should these be from the center of the tile?
-    // TODO: Rename to offset X and Y
-    real32 TileRelX;
-    real32 TileRelY;
-};
-
-struct tile_chunk
-{
-    uint32 *Tiles;
+    memory_index Size;
+    uint8 *Base;
+    memory_index Used;
 };
 
 struct world
 {
-    uint32 ChunkShift;
-    uint32 ChunkMask;
-    uint32 ChunkDim;
-
-    real32 TileSideInMeters;
-    int32 TileSideInPixels;
-    real32 MetersToPixels;
-
-    // TODO: Beginner's sparsness
-    int32 TileChunkCountX;
-    int32 TileChunkCountY;
-
-    tile_chunk *TileChunks;
+    tile_map *TileMap;
 };
 
 struct game_state
 {
-    world_position PlayerP;
+    memory_arena WorldArena;
+    world *World;
+
+    tile_map_position PlayerP;
 };
 
 #define HANDMADE_H
