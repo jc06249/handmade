@@ -86,7 +86,7 @@ void * PushSize_(memory_arena *Arena, memory_index Size)
 {
     Assert((Arena->Used + Size) <= Arena->Size);
     void *Result = Arena->Base + Arena->Used;
-    Arena->Used =+ Size;
+    Arena->Used += Size;
 
     return(Result);
 }
@@ -152,7 +152,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         uint32 AbsTileX = ScreenX * TilesPerWidth + TileX;
                         uint32 AbsTileY = ScreenY * TilesPerHeight + TileY;
 
-                        SetTileValue(&GameState->WorldArena, World->TileMap, AbsTileX, AbsTileY, 0);
+                        SetTileValue(&GameState->WorldArena, World->TileMap, AbsTileX, AbsTileY, (TileX == TileY) && (TileY % 2) ? 1 : 0);
                     }
                 }
             }
