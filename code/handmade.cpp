@@ -28,6 +28,60 @@ internal void GameOutputSound(game_state *GameState ,game_sound_output_buffer *S
     }
 }
 
+internal void DrawHexagon(game_offscreen_buffer *Buffer)
+{
+    int32 MinX = 100;
+    int32 MaxX = 500;
+    int32 CenterX = (MaxX - MinX) /2;
+    int32 Width = 100;
+
+    int32 MinY = 100;
+    int32 MaxY = 500;
+    int32 CenterY = (MaxY - MinY) /2;
+
+    const int PointsInAHexgon = 6;
+    int point[PointsInAHexgon][2 ];
+
+    for(int i = 0; i < PointsInAHexgon; ++i)
+    {
+        point[i][0] = CenterX + TruncateReal32ToInt32(Width * (real32)cosf(i * 60 * Pi32 / 180.0f));
+        point[i][1] = CenterY + TruncateReal32ToInt32(Width * (real32)sinf(i * 60 * Pi32 / 180.0f));
+
+    }
+
+    uint32 HexColour = RoundReal32ToUInt32(0.0f);
+    uint32 BackGroundColour = RoundReal32ToUInt32(255.0f);
+
+
+    uint32 Colour;
+
+    uint8 *Row ((uint8 *)Buffer->Memory + (MinX * Buffer->BytesPerPixel) + (MinY * Buffer->Pitch));
+
+    for(int Y = MinY; Y < MaxY; ++Y)
+    {
+        uint32 *Pixel = (uint32 *)Row;
+        for(int X = MinX; X < MaxX; ++X)
+        {
+            for(int i = 0; i < PointsInAHexgon; ++i)
+            {
+                if(point[i][0] == X && point[i][1] == Y)
+                {
+                    Colour = HexColour;
+                }
+                else
+                {
+                    Colour = BackGroundColour;
+                }
+            }
+            *Pixel++ = Colour;
+
+        }
+
+        Row += Buffer->Pitch;
+    }
+
+}
+
 internal void DrawRectangle(game_offscreen_buffer *Buffer, real32 RealMinX, real32 RealMinY, real32 RealMaxX, real32 RealMaxY, real32 R, real32 G, real32 B)
 {
     int32 MinX = RoundReal32ToInt32(RealMinX);
@@ -271,6 +325,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     real32 PlayerTop = SreenCenterY - (TileMap->MetersToPixels * PlayerHeight);
 
     DrawRectangle(Buffer, PlayerLeft, PlayerTop, PlayerLeft + (TileMap->MetersToPixels * PlayerWidth), PlayerTop + (TileMap->MetersToPixels * PlayerHeight), PlayerR, PlayerG, PlayerB);
+    DrawHexagon(Buffer);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
