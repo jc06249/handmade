@@ -96,7 +96,7 @@ DEBUG_PLATFORM_FREE_FILE_MEMORY(DEBUGPlatformFreeFileMemory)
 DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
 {
     debug_read_file_result Result = {};
-    
+
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     if(FileHandle != INVALID_HANDLE_VALUE)
     {
@@ -192,13 +192,13 @@ internal win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLNam
     Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
 
     CopyFile(SourceDLLName, TempDLLName, FALSE);
-    
+
     Result.GameCodeDLL = LoadLibraryA(TempDLLName);
     if(Result.GameCodeDLL)
     {
         Result.UpdateAndRender = (game_update_and_render *)
             GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-        
+
         Result.GetSoundSamples = (game_get_sound_samples *)
             GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
 
@@ -237,13 +237,13 @@ internal void Win32LoadXInput(void)
         // TODO: Diagnostic
         XInputLibrary = LoadLibraryA("xinput9_1_0.dll");
     }
-    
+
     if(!XInputLibrary)
     {
         // TODO: Diagnostic
         XInputLibrary = LoadLibraryA("xinput1_3.dll");
     }
-    
+
     if(XInputLibrary)
     {
         XInputGetState = (x_input_get_state *)GetProcAddress(XInputLibrary, "XInputGetState");
@@ -398,7 +398,7 @@ internal void Win32DisplayBufferInWindow(win32_offscreen_buffer *Buffer, HDC Dev
     PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
     PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
     PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
-    
+
     // NOTE: For prototyping purposes, we're going to always blit
     // 1-to-1 pixels to make sure we don't introduce artifacts with
     // stretching while we are learning to code the renderer!
@@ -406,7 +406,7 @@ internal void Win32DisplayBufferInWindow(win32_offscreen_buffer *Buffer, HDC Dev
 }
 
 internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
-{       
+{
     LRESULT Result = 0;
 
     switch(Message)
@@ -650,7 +650,7 @@ internal void Win32ProcessPendingMessages(win32_state *State, game_controller_in
             {
                 GlobalRunning = false;
             } break;
-            
+
             case WM_SYSKEYDOWN:
             case WM_SYSKEYUP:
             case WM_KEYDOWN:
@@ -788,7 +788,7 @@ internal void Win32DebugDrawVertical(win32_offscreen_buffer *Backbuffer,  int X,
     {
         Bottom = Backbuffer->Height;
     }
-    
+
     if((X >= 0) && (X < Backbuffer->Width))
     {
         uint8 *Pixel = ((uint8 *)Backbuffer->Memory + X*Backbuffer->BytesPerPixel + Top*Backbuffer->Pitch);
@@ -853,7 +853,7 @@ internal void Win32DebugSyncDisplay(win32_offscreen_buffer *Backbuffer, int Mark
 
             Win32DrawSoundBufferMarker(Backbuffer, SoundOutput, C, PadX, FirstTop, Bottom, ThisMarker->ExpectedFlipPlayCursor, ExpectedFlipColor);
         }
-        
+
         Win32DrawSoundBufferMarker(Backbuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->FlipPlayCursor, PlayColor);
         Win32DrawSoundBufferMarker(Backbuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->FlipPlayCursor + 480*SoundOutput->BytesPerSample, PlayWindowColor);
         Win32DrawSoundBufferMarker(Backbuffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->FlipWriteCursor, WriteColor);
@@ -963,7 +963,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             // TODO: Handle various memory footprints (USING SYSTEM METRICS)
             // TODO: Use MEM_LARGE_PAGES and call adjust token
             // privileges when not on Windows XP?
-            // TODO TransientStorage needs to be broken up 
+            // TODO TransientStorage needs to be broken up
             Win32State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
             Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalSize,MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
             GameMemory.PermanentStorage = Win32State.GameMemoryBlock;
@@ -976,7 +976,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 // TODO: Recording system still seems to take too long
                 // on record start - find out what Windows is doing and if
                 // we can speed up / defer some of that processing.
-                
+
                 Win32GetInputFileLocation(&Win32State, false, ReplayIndex, sizeof(ReplayBuffer->FileName), ReplayBuffer->FileName);
 
                 ReplayBuffer->FileHandle = CreateFileA(ReplayBuffer->FileName, GENERIC_WRITE|GENERIC_READ, 0, 0, CREATE_ALWAYS, 0, 0);
@@ -1000,7 +1000,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 game_input Input[2] = {};
                 game_input *NewInput = &Input[0];
                 game_input *OldInput = &Input[1];
-    
+
                 LARGE_INTEGER LastCounter = Win32GetWallClock();
                 LARGE_INTEGER FlipWallClock = Win32GetWallClock();
 
@@ -1018,7 +1018,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 while(GlobalRunning)
                 {
                     NewInput->dtForFrame = TargetSecondsPerFrame;
-                    
+
                     FILETIME NewDLLWriteTime = Win32GetLastWriteTime(SourceGameCodeDLLFullPath);
                     if(CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0)
                     {
@@ -1052,7 +1052,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         Win32ProcessKeyboardMessage(&NewInput->MouseButtons[0], GetKeyState(VK_LBUTTON) & (1 << 15)); Win32ProcessKeyboardMessage(&NewInput->MouseButtons[1], GetKeyState(VK_MBUTTON) & (1 << 15));
                         Win32ProcessKeyboardMessage(&NewInput->MouseButtons[2], GetKeyState(VK_RBUTTON) & (1 << 15)); Win32ProcessKeyboardMessage(&NewInput->MouseButtons[3], GetKeyState(VK_XBUTTON1) & (1 << 15));
                         Win32ProcessKeyboardMessage(&NewInput->MouseButtons[4], GetKeyState(VK_XBUTTON2) & (1 << 15));
-                        
+
                         // TODO: Need to not poll disconnected controllers to avoid
                         // xinput frame rate hit on older libraries...
                         // TODO: Should we poll this more frequently
@@ -1061,19 +1061,19 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         {
                             MaxControllerCount = (ArrayCount(NewInput->Controllers) - 1);
                         }
-                
+
                         for (DWORD ControllerIndex = 0; ControllerIndex < MaxControllerCount; ++ControllerIndex)
                         {
                             DWORD OurControllerIndex = ControllerIndex + 1;
                             game_controller_input *OldController = GetController(OldInput, OurControllerIndex);
                             game_controller_input *NewController = GetController(NewInput, OurControllerIndex);
-                    
+
                             XINPUT_STATE ControllerState;
                             if(XInputGetState(ControllerIndex, &ControllerState) == ERROR_SUCCESS)
                             {
                                 NewController->IsConnected = true;
                                 NewController->IsAnalog = OldController->IsAnalog;
-                           
+
                                 // NOTE: This controller is plugged in
                                 // TODO: See if ControllerState.dwPacketNumber increments too rapidly
                                 XINPUT_GAMEPAD *Pad = &ControllerState.Gamepad;
@@ -1093,19 +1093,19 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                                     NewController->StickAverageY = 1.0f;
                                     NewController->IsAnalog = false;
                                 }
-                            
+
                                 if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN)
                                 {
                                     NewController->StickAverageY = -1.0f;
                                     NewController->IsAnalog = false;
                                 }
-                            
+
                                 if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT)
                                 {
                                     NewController->StickAverageX = -1.0f;
                                     NewController->IsAnalog = false;
                                 }
-                            
+
                                 if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT)
                                 {
                                     NewController->StickAverageX = 1.0f;
@@ -1139,7 +1139,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
 
                         game_offscreen_buffer Buffer = {};
                         Buffer.Memory = GlobalBackbuffer.Memory;
-                        Buffer.Width = GlobalBackbuffer.Width; 
+                        Buffer.Width = GlobalBackbuffer.Width;
                         Buffer.Height = GlobalBackbuffer.Height;
                         Buffer.Pitch = GlobalBackbuffer.Pitch;
                         Buffer.BytesPerPixel = GlobalBackbuffer.BytesPerPixel;
@@ -1172,7 +1172,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                                We define a safety value that is the number
                                of samples we think our game update loop
                                may vary by (let's say up to 2ms)
-                       
+
                                When we wake up to write audio, we will look
                                and see what the play cursor position is and we
                                will forecast ahead where we think the play
@@ -1204,7 +1204,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                             DWORD ExpectedBytesUntilFlip = (DWORD)((SecondsLeftUntilFlip/TargetSecondsPerFrame)*(real32)ExpectedSoundBytesPerFrame);
 
                             DWORD ExpectedFrameBoundaryByte = PlayCursor + ExpectedBytesUntilFlip;
-                        
+
                             DWORD SafeWriteCursor = WriteCursor;
                             if(SafeWriteCursor < PlayCursor)
                             {
@@ -1212,7 +1212,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                             }
                             Assert(SafeWriteCursor >= PlayCursor);
                             SafeWriteCursor += SoundOutput.SafetyBytes;
-                        
+
                             bool32 AudioCardIsLowLatency = (SafeWriteCursor < ExpectedFrameBoundaryByte);
 
                             DWORD TargetCursor = 0;
@@ -1268,14 +1268,14 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                             _snprintf_s(TextBuffer, sizeof(TextBuffer), "BTL:%u TC:%u BTW:%u - PC:%u WC:%u DELTA:%u (%fs)\n", ByteToLock, TargetCursor, BytesToWrite, PlayCursor, WriteCursor, AudioLatencyBytes, AudioLatencySeconds);
                             OutputDebugStringA(TextBuffer);
 #endif
-#endif   
+#endif
                             Win32FillSoundBuffer(&SoundOutput, ByteToLock, BytesToWrite, &SoundBuffer);
                         }
                         else
                         {
                             SoundIsValid = false;
                         }
-                    
+
                         LARGE_INTEGER WorkCounter = Win32GetWallClock();
                         real32 WorkSecondsElapsed = Win32GetSecondsElapsed(LastCounter, WorkCounter);
 
@@ -1291,13 +1291,13 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                                     Sleep(SleepMS);
                                 }
                             }
-                        
+
                             real32 TestSecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClock());
                             if(TestSecondsElapsedForFrame < TargetSecondsPerFrame)
                             {
                                 // TODO: LOG MISSED SLEEP HERE
                             }
-                        
+
                             while(SecondsElapsedForFrame < TargetSecondsPerFrame)
                             {
                                 SecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClock());

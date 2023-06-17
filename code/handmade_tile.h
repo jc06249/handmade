@@ -8,6 +8,7 @@ struct tile_map_position
     // index in the chunk.
     uint32 AbsTileX;
     uint32 AbsTileY;
+    uint32 AbsTileZ;
 
     // TODO: Should these be from the center of the tile?
     // TODO: Rename to offset X and Y
@@ -19,6 +20,7 @@ struct tile_chunk_position
 {
     uint32 TileChunkX;
     uint32 TileChunkY;
+    uint32 TileChunkZ;
 
     uint32 RelTileX;
     uint32 RelTileY;
@@ -26,6 +28,7 @@ struct tile_chunk_position
 
 struct tile_chunk
 {
+    // TODO: Real structure for a tile!
     uint32 *Tiles;
 };
 
@@ -36,13 +39,12 @@ struct tile_map
     uint32 ChunkDim;
 
     real32 TileSideInMeters;
-    int32 TileSideInPixels;
-    real32 MetersToPixels;
 
-    // TODO: Beginner's sparsness
+    // TODO: REAL sparseness so anywhere in the world can be
+    // represented without the giant pointer array.
     uint32 TileChunkCountX;
     uint32 TileChunkCountY;
-
+    uint32 TileChunkCountZ;
     tile_chunk *TileChunks;
 };
 
