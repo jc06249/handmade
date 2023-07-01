@@ -74,6 +74,51 @@ internal void DrawRectangle(game_offscreen_buffer *Buffer, real32 RealMinX, real
     }
 }
 
+internal void DrawBitmap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, real32 RealX, real32 RealY)
+{
+
+    int32 MinX = RoundReal32ToInt32(RealX);
+    int32 MinY = RoundReal32ToInt32(RealY);
+    int32 MaxX = RoundReal32ToInt32(RealX + (real32)Bitmap->Width);
+    int32 MaxY = RoundReal32ToInt32(RealY + (real32)Bitmap->Height);
+
+    if(MinX < 0)
+    {
+        MinX = 0;
+    }
+
+    if(MinY < 0)
+    {
+        MinY = 0;
+    }
+
+    if(MaxX > Buffer->Width)
+    {
+        MaxX = Buffer->Width;
+    }
+
+    if(MaxY > Buffer->Height)
+    {
+        MaxY = Buffer->Height;
+    }
+
+    // TODO: SourceRow needs to be changed baed on clipping.
+    uint32 *SourceRow = Bitmap->Pixels + Bitmap->Width * (Bitmap->Height - 1);
+    uint8 *DestRow = ((uint8 *)Buffer->Memory + MinX * Buffer->BytesPerPixel + MinY * Buffer->Pitch);
+    for(int32 Y = MinY; Y < MaxY; ++Y)
+    {
+        uint32 *Dest = (uint32 *)DestRow;
+        uint32 *Source = SourceRow;
+        for(int32 X = MinX; X < MaxX; ++X)
+        {
+            *Dest++ = *Source++;
+        }
+
+        DestRow += Buffer->Pitch;
+        SourceRow -= Bitmap->Width;
+    }
+}
+
 #pragma pack(push, 1)
 struct bitmap_header
 {
@@ -87,19 +132,50 @@ struct bitmap_header
     int32 Height;
     uint16 Planes;
     uint16 BitsPerPixel;
+    uint32 Compresssion;
+    uint32 SizeofBitap;
+    int32 HorzResolution;
+    int32 VertResolution;
+    uint32 ColorUsed;
+    uint32 ColorsImportant;
+
+    uint32 RedMask;
+    uint32 GreenMask;
+    uint32 BlueMask;
 };
 #pragma pack(pop)
 
-internal uint32 *DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile, char *FileName)
+internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile, char *FileName)
 {
-    uint32 *Result = 0;
+    loaded_bitmap Result = {};
+
+    // NOTE: Byte order in memory is AA BB GG RR, bottom up.
+    // In little endian -> 0xRRGGBBAA
 
     debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
     if(ReadResult.ContentsSize != 0)
     {
         bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
         uint32 *Pixels = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
-        Result = Pixels;
+        Result.Pixels = Pixels;
+        Result.Width = Header->Width;
+        Result.Height = Header->Height;
+
+        // NOTE: If you are using this generically for some reason,
+        // please remember that BMP files CAN GO IN EITHER DIRECTION and
+        // the height will be negative for top-down.
+        // (Also, there can be compresssion, etc., etc... DON'T think this
+        // is complete BMP loading code because it isn't!!)
+
+        uint32 *SourceDest = Pixels;
+        for(int32 Y = 0; Y < Header->Height; ++Y)
+        {
+            for(int32 X = 0; X < Header->Width; ++X)
+            {
+                *SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
+                ++SourceDest;
+            }
+        }
     }
     return(Result);
 }
@@ -115,7 +191,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     if(!Memory->IsInitialised)
     {
-        GameState->PixelPointer = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../handmade/data/test/test_background.bmp");
+        GameState->Backdrop = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../handmade/data/test/test_background.bmp");
+        GameState->HeroHead = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../handmade/data/test/test_hero_front_head.bmp");
+        GameState->HeroCape = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../handmade/data/test/test_hero_front_cape.bmp");
+        GameState->HeroTorso = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../handmade/data/test/test_hero_front_torso.bmp");
+
 
         GameState->PlayerP.AbsTileX = 1;
         GameState->PlayerP.AbsTileY = 3;
@@ -364,7 +444,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
     }
 
-    DrawRectangle(Buffer, 0.0f, 0.0f, (real32)Buffer->Width, (real32)Buffer->Height, 1.0f, 0.0f, 0.1f);
+    DrawBitmap(Buffer, &GameState->Backdrop, 0, 0);
 
     real32 SreenCenterX = 0.5f * (real32)Buffer->Width;
     real32 SreenCenterY = 0.5f * (real32)Buffer->Height;
@@ -377,7 +457,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             uint32 Row = GameState->PlayerP.AbsTileY + RelRow;
             uint32 TileID = GetTileValue(TileMap, Column, Row, GameState->PlayerP.AbsTileZ);
 
-            if(TileID > 0)
+            if(TileID > 1)
             {
                 real32 Gray = 0.5f;
                 if(TileID == 2)
@@ -415,18 +495,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     real32 PlayerTop = SreenCenterY - (MetersToPixels * PlayerHeight);
 
     DrawRectangle(Buffer, PlayerLeft, PlayerTop, PlayerLeft + (MetersToPixels * PlayerWidth), PlayerTop + (MetersToPixels * PlayerHeight), PlayerR, PlayerG, PlayerB);
-
-#if 0
-    uint32 *Source = GameState->PixelPointer;
-    uint32 *Dest = (uint32 *)Buffer->Memory;
-    for(int32 Y=0; Y< Buffer->Height; ++Y)
-    {
-        for(int32 X=0; X< Buffer->Width; ++X)
-        {
-            *Dest++ = *Source++;
-        }
-    }
-#endif
+    DrawBitmap(Buffer, &GameState->HeroHead, 0, 0);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
