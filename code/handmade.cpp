@@ -444,6 +444,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     real32 LowerLeftX = -(real32)TileSideInPixels / 2;
     real32 LowerLeftY = (real32)Buffer->Height;
 
+    //
+    // NOTE: 
+    //
+    tile_map_position OldPlayerP = GameState->PlayerP;
     for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ++ControllerIndex)
     {
         game_controller_input *Controller = GetController(Input, ControllerIndex);
@@ -453,6 +457,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
         else
         {
+
             // NOTE: Use digital movement tuning
             v2 ddPlayer = {};
 
@@ -461,19 +466,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 GameState->HeroFacingDirection = 1;
                 ddPlayer.Y = 1.0f;
             }
-
             if(Controller->MoveDown.EndedDown)
             {
                 GameState->HeroFacingDirection = 3;
                 ddPlayer.Y = -1.0f;
             }
-
             if(Controller->MoveLeft.EndedDown)
             {
                 GameState->HeroFacingDirection = 2;
                 ddPlayer.X = -1.0f;
             }
-
             if(Controller->MoveRight.EndedDown)
             {
                 GameState->HeroFacingDirection = 0;
@@ -496,13 +498,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             ddPlayer += -1.5f * GameState->dPlayerP;
 
             tile_map_position NewPlayerP = GameState->PlayerP;
-            NewPlayerP.Offset = 0.5f * ddPlayer * Square(Input->dtForFrame) + // 0.5 * velocity * dt^2
-                                GameState->dPlayerP * Input->dtForFrame +
-                                NewPlayerP.Offset;
+            v2 PlayerDelta = 0.5f * ddPlayer * Square(Input->dtForFrame) + // 0.5 * velocity * dt^2
+                             GameState->dPlayerP * Input->dtForFrame;
+            NewPlayerP.Offset += PlayerDelta;
             GameState->dPlayerP = ddPlayer * Input->dtForFrame + GameState->dPlayerP;
-
             NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
             // TODO: Delta function that auto-recanonicalises
+
+#if 1
 
             tile_map_position PlayerLeft = NewPlayerP;
             PlayerLeft.Offset.X -= 0.5f * PlayerWidth;
@@ -554,43 +557,83 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
             else
             {
-                if(!AreOnSameTile(&GameState->PlayerP, &NewPlayerP))
-                {
-                    uint32 NewTileValue = GetTileValue(TileMap, NewPlayerP);
-                    if(NewTileValue == 3)
-                    {
-                        ++NewPlayerP.AbsTileZ;
-                    }
-                    else if(NewTileValue == 4)
-                    {
-                        --NewPlayerP.AbsTileZ;
-                    }
-                }
                 GameState->PlayerP = NewPlayerP;
             }
+#else
+            uint32 MinTileX = 0;
+            uint32 MinTileY = 0;
+            uint32 OnePastMaxTileX = 0;
+            uint32 OnePastMaxTileY = 0;
+            uint32 AbsTileZ = GameState->PlayerP.AbsTileZ;
+            tile_map_position BestPlayerP = GameState->PlayerP;
+            real32 BestDistanceSq = LengthSq(PlayerDelta);
+            for(uint32 AbsTileY = MinTileY; AbsTileY != OnePastMaxTileY; ++AbsTileY)
+            {
+                for(uint32 AbsTileX = MinTileX; AbsTileX != OnePastMaxTileX; ++AbsTileX)
+                {
+                    tile_map_position TestTileP = CenteredTilePoint(AbsTileX, AbsTileY, AbsTileZ);
+                    uint32 TileValue = GetTileValue(TileMap, TestTileP);
+                    if(IsTileValueEmpty(TileValue))
+                    {
+                        v2 MinCorner = -0.5f * v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};
+                        v2 MaxCorner = 0.5f * v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};
 
-            GameState->CameraP.AbsTileZ = GameState->PlayerP.AbsTileZ;
+                         tile_map_difference RelNewPlayerP = Subtract(TileMap, &TestTileP, &NewPlayerP);
+                        v2 TestP = ClosestPointInRectangle(MinCorner, MaxCorner, RelNewPlayerP);
+                        TestDistanceSq = ;
+                        if(BestDistanceSq > TestDistanceSq)
+                        {
+                            BestPlayerP = ;
+                            BestDistanceSq = ;
+                        }
 
-            tile_map_difference Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
-            if(Diff.dXY.X > (9.0f * TileMap->TileSideInMeters))
-            {
-                GameState->CameraP.AbsTileX += 17;
+                    }
+                }
             }
-            if(Diff.dXY.X < -(9.0f * TileMap->TileSideInMeters))
-            {
-                GameState->CameraP.AbsTileX -= 17;
-            }
-            if(Diff.dXY.Y > (5.0f * TileMap->TileSideInMeters))
-            {
-                GameState->CameraP.AbsTileY += 9;
-            }
-            if(Diff.dXY.Y < -(5.0f * TileMap->TileSideInMeters))
-            {
-                GameState->CameraP.AbsTileY -= 9;
-            }
+#endif
         }
     }
 
+    //
+    // NOTE: Update camera/player Z based on last movement.
+    //
+    if(!AreOnSameTile(&OldPlayerP, &GameState->PlayerP))
+    {
+        uint32 NewTileValue = GetTileValue(TileMap, GameState->PlayerP);
+        if(NewTileValue == 3)
+        {
+            ++GameState->PlayerP.AbsTileZ;
+        }
+        else if(NewTileValue == 4)
+        {
+            --GameState->PlayerP.AbsTileZ;
+        }
+    }
+
+    GameState->CameraP.AbsTileZ = GameState->PlayerP.AbsTileZ;
+
+    tile_map_difference Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
+    if(Diff.dXY.X > (9.0f * TileMap->TileSideInMeters))
+    {
+        GameState->CameraP.AbsTileX += 17;
+    }
+    if(Diff.dXY.X < -(9.0f * TileMap->TileSideInMeters))
+    {
+        GameState->CameraP.AbsTileX -= 17;
+    }
+    if(Diff.dXY.Y > (5.0f * TileMap->TileSideInMeters))
+    {
+        GameState->CameraP.AbsTileY += 9;
+    }
+    if(Diff.dXY.Y < -(5.0f * TileMap->TileSideInMeters))
+    {
+        GameState->CameraP.AbsTileY -= 9;
+    }
+    Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
+
+    //
+    // NOTE: Render
+    //
     DrawBitmap(Buffer, &GameState->Backdrop, 0, 0);
 
     real32 SreenCenterX = 0.5f * (real32)Buffer->Width;
@@ -633,8 +676,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
         }
     }
-
-    tile_map_difference Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
 
     real32 PlayerR = 1.0f;
     real32 PlayerG = 1.0f;
