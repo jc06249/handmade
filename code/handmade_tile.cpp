@@ -128,14 +128,14 @@ inline void RecanonicalizeCoord(tile_map *TileMap, uint32 *Tile, real32 *TileRel
     // for recananicalising because this can end up rounding back on to the tile
     // you just came from.
 
-    // TODO: TileMap is assumed to be toroidal topology, if you step off one end you come back on the other!
+    // NOTE: TileMap is assumed to be toroidal topology, if you step off one end you come back on the other!
     int32 Offset = RoundReal32ToInt32(*TileRel / TileMap->TileSideInMeters);
     *Tile += Offset;
     *TileRel -= Offset * TileMap->TileSideInMeters;
 
-    //TODO: Fix floating point math do we can be < ?
-    Assert(*TileRel >= -0.5f * TileMap->TileSideInMeters);
-    Assert(*TileRel <= 0.5f * TileMap->TileSideInMeters);
+    // TODO: Fix floating point math so this can be exact?
+    Assert(*TileRel > -0.5001f * TileMap->TileSideInMeters);
+    Assert(*TileRel < 0.5001f * TileMap->TileSideInMeters);
 }
 
 inline tile_map_position RecanonicalizePosition(tile_map *TileMap, tile_map_position Pos)
