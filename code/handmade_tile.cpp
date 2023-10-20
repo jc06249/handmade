@@ -174,7 +174,7 @@ inline tile_map_difference Subtract(tile_map *TileMap, tile_map_position *A, til
 
 inline tile_map_position CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
 {
-    tile_map_position Result;
+    tile_map_position Result = {};
 
     Result.AbsTileX = AbsTileX;
     Result.AbsTileY = AbsTileY;
