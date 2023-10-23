@@ -234,6 +234,19 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_
     return(Result);
 }
 
+
+inline low_entity * GetLowEntity(game_state *GameState, uint32 Index)
+{
+    low_entity *Result = 0;
+
+    if((Index > 0) && (Index < GameState->LowEntityCount))
+    {
+        Result = GameState->LowEntities + Index;
+    }
+
+    return(Result);
+}
+
 inline high_entity * MakeEntityHighFrequency(game_state *GameState, uint32 LowIndex)
 {
     high_entity *EntityHigh = 0;
@@ -268,6 +281,21 @@ inline high_entity * MakeEntityHighFrequency(game_state *GameState, uint32 LowIn
     return(EntityHigh);
 }
 
+inline entity GetHighEntity(game_state *GameState, uint32 LowIndex)
+{
+    entity Result = {};
+
+    // TODO: Should we allow passing a zero index and return a null pointer?
+    if((LowIndex > 0) && (LowIndex < GameState->LowEntityCount))
+    {
+        Result.LowIndex = LowIndex;
+        Result.Low = GameState->LowEntities + LowIndex;
+        Result.High = MakeEntityHighFrequency(GameState, LowIndex);
+    }
+
+    return(Result);
+}
+
 inline void MakeEntityLowFrequency(game_state *GameState, uint32 LowIndex)
 {
     low_entity *EntityLow = &GameState->LowEntities[LowIndex];
@@ -286,33 +314,6 @@ inline void MakeEntityLowFrequency(game_state *GameState, uint32 LowIndex)
         --GameState->HighEntityCount;
         EntityLow->HighEntityIndex = 0;
     }
-}
-
-inline low_entity * GetLowEntity(game_state *GameState, uint32 Index)
-{
-    low_entity *Result = 0;
-
-    if((Index > 0) && (Index < GameState->LowEntityCount))
-    {
-        Result = GameState->LowEntities + Index;
-    }
-
-    return(Result);
-}
-
-inline entity GetHighEntity(game_state *GameState, uint32 LowIndex)
-{
-    entity Result = {};
-
-    // TODO: Should we allow passing a zero index and return a null pointer?
-    if((LowIndex > 0) && (LowIndex < GameState->LowEntityCount))
-    {
-        Result.LowIndex = LowIndex;
-        Result.Low = GameState->LowEntities + LowIndex;
-        Result.High = MakeEntityHighFrequency(GameState, LowIndex);
-    }
-
-    return(Result);
 }
 
 inline void OffsetAndCheckFrequencyByArea(game_state *GameState, v2 Offset, rectangle2 CameraBounds)
@@ -353,7 +354,7 @@ internal uint32 AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY,
     EntityLow->P.AbsTileY = AbsTileY;
     EntityLow->P.AbsTileZ = AbsTileZ;
     EntityLow->Height = GameState->World->TileMap->TileSideInMeters; // 1.4f;
-    EntityLow->Width = EntityLow->Width;
+    EntityLow->Width = EntityLow->Height;
     EntityLow->Collides = true;
 
     return(EntityIndex);
@@ -918,9 +919,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     real32 ScreenCenterX = 0.5f * (real32)Buffer->Width;
     real32 ScreenCenterY = 0.5f * (real32)Buffer->Height;
 #if 0
-    for(int RelRow = -10; RelRow < 10; ++RelRow)
+    for(int32 RelRow = -10; RelRow < 10; ++RelRow)
     {
-        for(int RelColumn = -20; RelColumn < 20; ++RelColumn)
+        for(int32 RelColumn = -20; RelColumn < 20; ++RelColumn)
         {
             uint32 Column = GameState->CameraP.AbsTileX + RelColumn;
             uint32 Row = GameState->CameraP.AbsTileY + RelRow;
@@ -957,7 +958,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 #endif
 
-    for(uint32 HighEntityIndex = 1; HighEntityIndex < GameState->EntityCount; ++HighEntityIndex)
+    for(uint32 HighEntityIndex = 1; HighEntityIndex < GameState->HighEntityCount; ++HighEntityIndex)
     {
         high_entity *HighEntity = GameState->HighEntities_ + HighEntityIndex;
         low_entity *LowEntity = GameState->LowEntities + HighEntity->LowEntityIndex;
