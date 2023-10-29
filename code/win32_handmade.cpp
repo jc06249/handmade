@@ -1,22 +1,21 @@
 /*
-TODO: THIS IS NOT A FINAL PLATFORM LAYER!!!
+  TODO: THIS IS NOT A FINAL PLATFORM LAYER!!!
 
-- Make the right calls so Windows doesn't we're still loading for a bit after we actually start
+  - Make the right calls so Windows doesn't think we're "still loading" for a bit after we actually start
+  - Saved game locations
+  - Getting a handle to our own executable file
+  - Asset loading path
+  - Threading (launch a thread)
+  - Raw Input (support for multiple keyboards)
+  - ClipCursor() (for multimonitor support)
+  - QueryCancelAutoplay
+  - WM_ACTIVATEAPP (for when we are not the active application)
+  - Blit speed improvements (BitBlt)
+  - Hardware acceleration (OpenGL or Direct3D or BOTH??)
+  - GetKeyboardLayout (for French keyboards, international WASD support)
+  - ChangeDisplaySettings option if we detect slow fullscreen blit??
 
-- Saved game locations
-- Getting a handle to our own executable file
-- Asset loading path
-- Threading (launch a thread)
-- Raw Input (suppoer for multiple keyboards)
-- ClipCursor() (for multimonitor support)
-- QueryCancelAutoplay
-- WM_ACTIVEATEAPP (for when we are not the active application)
-- Blit speed improvements (BitBlt)
-- Hardware acceleration (OpenGL or Direct3D or BOTH??)
-- GetKeyboardLayout (for French keyboards, international WASD support)
-- ChangeDisplaySettings option if we detect slow fullscreen blit??
-
-  Just a partial list of stuff!!
+   Just a partial list of stuff!!
 */
 
 #include "handmade_platform.h"
@@ -38,7 +37,7 @@ global_variable int64 GlobalPerfCountFrequency;
 global_variable bool32 DEBUGGlobalShowCursor;
 global_variable WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
 
-// XInputGetState
+// NOTE: XInputGetState
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
 typedef X_INPUT_GET_STATE(x_input_get_state);
 X_INPUT_GET_STATE(XInputGetStateStub)
@@ -48,7 +47,7 @@ X_INPUT_GET_STATE(XInputGetStateStub)
 global_variable x_input_get_state *XInputGetState_ = XInputGetStateStub;
 #define XInputGetState XInputGetState_
 
-// XInputSetState
+// NOTE: XInputSetState
 #define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration)
 typedef X_INPUT_SET_STATE(x_input_set_state);
 X_INPUT_SET_STATE(XInputSetStateStub)
@@ -58,7 +57,6 @@ X_INPUT_SET_STATE(XInputSetStateStub)
 global_variable x_input_set_state *XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
-// dsound
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDS, LPUNKNOWN pUnkOuter)
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
 
@@ -74,6 +72,7 @@ internal void CatStrings(size_t SourceACount, char *SourceA, size_t SourceBCount
     {
         *Dest++ = *SourceB++;
     }
+
     *Dest++ = 0;
 }
 
@@ -106,7 +105,6 @@ internal void Win32BuildEXEPathFileName(win32_state *State, char *FileName, int 
 {
     CatStrings(State->OnePastLastEXEFileNameSlash - State->EXEFileName, State->EXEFileName, StringLength(FileName), FileName, DestCount, Dest);
 }
-
 
 DEBUG_PLATFORM_FREE_FILE_MEMORY(DEBUGPlatformFreeFileMemory)
 {
@@ -164,7 +162,6 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
     return(Result);
 }
 
-
 DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
 {
     bool32 Result = false;
@@ -202,6 +199,7 @@ inline FILETIME Win32GetLastWriteTime(char *Filename)
     {
         LastWriteTime = Data.ftLastWriteTime;
     }
+
     return(LastWriteTime);
 }
 
@@ -226,7 +224,7 @@ internal win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLNam
                 GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
 
             Result.IsValid = (Result.UpdateAndRender &&
-                            Result.GetSoundSamples);
+                              Result.GetSoundSamples);
         }
     }
 
@@ -284,7 +282,6 @@ internal void Win32LoadXInput(void)
         // TODO: Diagnostic
     }
 }
-
 
 internal void Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferSize)
 {
@@ -415,10 +412,17 @@ internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int Width, i
 
 internal void Win32DisplayBufferInWindow(win32_offscreen_buffer *Buffer, HDC DeviceContext, int WindowWidth, int WindowHeight)
 {
-    // TODO: Centering / block bars?
-    if((WindowWidth >= Buffer->Width * 2) && (WindowHeight >= Buffer->Height * 2))
+    // TODO: Centering / black bars?
+
+    if((WindowWidth >= Buffer->Width * 2) &&
+       (WindowHeight >= Buffer->Height * 2))
     {
-        StretchDIBits(DeviceContext, 0, 0, 2 * Buffer->Width, 2 * Buffer->Height, 0, 0, Buffer->Width, Buffer->Height, Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
+        StretchDIBits(DeviceContext,
+                      0, 0, 2 * Buffer->Width, 2 * Buffer->Height,
+                      0, 0, Buffer->Width, Buffer->Height,
+                      Buffer->Memory,
+                      &Buffer->Info,
+                      DIB_RGB_COLORS, SRCCOPY);
     }
     else
     {
@@ -463,6 +467,16 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window, UINT Message, WPA
 
         case WM_ACTIVATEAPP:
         {
+#if 0
+            if(WParam == TRUE)
+            {
+                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 255, LWA_ALPHA);
+            }
+            else
+            {
+                SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 64, LWA_ALPHA);
+            }
+#endif
         } break;
 
         case WM_DESTROY:
@@ -523,7 +537,6 @@ internal void Win32ClearBuffer(win32_sound_output *SoundOutput)
         GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
     }
 }
-
 
 internal void
 Win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteToLock, DWORD BytesToWrite, game_sound_output_buffer *SourceBuffer)
@@ -683,11 +696,10 @@ internal void Win32PlayBackInput(win32_state *State, game_input *NewInput)
     }
 }
 
-
 internal void ToggleFullscreen(HWND Window)
 {
     // NOTE: This follows Raymond Chen's prescription
-    // for fullscreen toggleing, see:
+    // for fullscreen toggling, see:
     // http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
 
     DWORD Style = GetWindowLong(Window, GWL_STYLE);
@@ -832,6 +844,7 @@ internal void Win32ProcessPendingMessages(win32_state *State, game_controller_in
                         }
                     }
                 }
+
             } break;
 
             default:
@@ -858,7 +871,7 @@ inline real32 Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
 
 #if 0
 
-internal void Win32DebugDrawVertical(win32_offscreen_buffer *Backbuffer,  int X, int Top, int Bottom, uint32 Color)
+internal void Win32DebugDrawVertical(win32_offscreen_buffer *Backbuffer, int X, int Top, int Bottom, uint32 Color)
 {
     if(Top <= 0)
     {
@@ -974,24 +987,36 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
 #endif
     WNDCLASSA WindowClass = {};
 
-    /*  NOTE: 1080p display mode is 1920x1080 -> Half of that is 960x540
-        1920 -> 2048 = 1048-1920 -> 128 pixels
-        1080 -> 2048 = 2048-1080 -> pixels 968
-        1024 + 128 = 1152
-    */ 
+    /* NOTE: 1080p display mode is 1920x1080 -> Half of that is 960x540
+       1920 -> 2048 = 2048-1920 -> 128 pixels
+       1080 -> 2048 = 2048-1080 -> pixels 968
+       1024 + 128 = 1152
+    */
     Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
 
     WindowClass.style = CS_HREDRAW|CS_VREDRAW;
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
     WindowClass.hInstance = Instance;
     WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
-    // WindowClass.hIcon;
+//    WindowClass.hIcon;
     WindowClass.lpszClassName = "HandmadeHeroWindowClass";
 
     if(RegisterClassA(&WindowClass))
     {
         HWND Window =
-            CreateWindowExA(0, WindowClass.lpszClassName, "Handmade Hero", WS_OVERLAPPEDWINDOW|WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
+            CreateWindowExA(
+                0, // WS_EX_TOPMOST|WS_EX_LAYERED,
+                WindowClass.lpszClassName,
+                "Handmade Hero",
+                WS_OVERLAPPEDWINDOW|WS_VISIBLE,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                0,
+                0,
+                Instance,
+                0);
         if(Window)
         {
             win32_sound_output SoundOutput = {};
@@ -1054,15 +1079,19 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
 
 
             // TODO: Handle various memory footprints (USING SYSTEM METRICS)
-            // TODO: Use MEM_LARGE_PAGES and call adjust token
-            // privileges when not on Windows XP?
-            // TODO TransientStorage needs to be broken up
+
+            // TODO: Use MEM_LARGE_PAGES and
+            // call adjust token privileges when not on Windows XP?
+
+            // TODO: TransientStorage needs to be broken up
+            // into game transient and cache transient, and only the
+            // former need be saved for state playback.
             Win32State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
-            Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalSize,MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+            Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
             GameMemory.PermanentStorage = Win32State.GameMemoryBlock;
             GameMemory.TransientStorage = ((uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 
-            for(int ReplayIndex = 0; ReplayIndex < ArrayCount(Win32State.ReplayBuffers); ++ReplayIndex)
+            for(int ReplayIndex = 1; ReplayIndex < ArrayCount(Win32State.ReplayBuffers); ++ReplayIndex)
             {
                 win32_replay_buffer *ReplayBuffer = &Win32State.ReplayBuffers[ReplayIndex];
 
@@ -1084,7 +1113,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 }
                 else
                 {
-                    // TODO(casey): Diagnostic
+                    // TODO: Diagnostic
                 }
             }
 
@@ -1142,8 +1171,10 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         NewInput->MouseX = MouseP.x;
                         NewInput->MouseY = MouseP.y;
                         NewInput->MouseZ = 0; // TODO: Support mousewheel?
-                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[0], GetKeyState(VK_LBUTTON) & (1 << 15)); Win32ProcessKeyboardMessage(&NewInput->MouseButtons[1], GetKeyState(VK_MBUTTON) & (1 << 15));
-                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[2], GetKeyState(VK_RBUTTON) & (1 << 15)); Win32ProcessKeyboardMessage(&NewInput->MouseButtons[3], GetKeyState(VK_XBUTTON1) & (1 << 15));
+                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[0], GetKeyState(VK_LBUTTON) & (1 << 15));
+                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[1], GetKeyState(VK_MBUTTON) & (1 << 15));
+                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[2], GetKeyState(VK_RBUTTON) & (1 << 15));
+                        Win32ProcessKeyboardMessage(&NewInput->MouseButtons[3], GetKeyState(VK_XBUTTON1) & (1 << 15));
                         Win32ProcessKeyboardMessage(&NewInput->MouseButtons[4], GetKeyState(VK_XBUTTON2) & (1 << 15));
 
                         // TODO: Need to not poll disconnected controllers to avoid
@@ -1218,7 +1249,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                                 Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->LeftShoulder, XINPUT_GAMEPAD_LEFT_SHOULDER, &NewController->LeftShoulder);
                                 Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->RightShoulder, XINPUT_GAMEPAD_RIGHT_SHOULDER, &NewController->RightShoulder);
 
-                                Win32ProcessXInputDigitalButton(Pad->wButtons,&OldController->Start, XINPUT_GAMEPAD_START, &NewController->Start);
+                                Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->Start, XINPUT_GAMEPAD_START, &NewController->Start);
                                 Win32ProcessXInputDigitalButton(Pad->wButtons, &OldController->Back, XINPUT_GAMEPAD_BACK, &NewController->Back);
                             }
                             else
