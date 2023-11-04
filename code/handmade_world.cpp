@@ -8,7 +8,7 @@ inline bool32 IsCanonical(world *World, real32 TileRel)
 {
     // TODO: Fix floating point math so this can be exact?
     bool32 Result = ((TileRel >= -0.5f * World->ChunkSideInMeters) &&
-                     (TileRel < 0.5f * World->ChunkSideInMeters));
+                     (TileRel <= 0.5f * World->ChunkSideInMeters));
 
     return(Result);
 }
@@ -110,7 +110,7 @@ inline void RecanonicalizeCoord(world *World, int32 *Tile, real32 *TileRel)
     Assert(IsCanonical(World, *TileRel));
 }
 
-inline world_position MapIntoTileSpace(world *World, world_position BasePos, v2 Offset)
+inline world_position MapIntoChunkSpace(world *World, world_position BasePos, v2 Offset)
 {
     world_position Result = BasePos;
 
@@ -129,6 +129,7 @@ inline world_position ChunkPositionFromTilePosition(world *World, int32 AbsTileX
     Result.ChunkX = AbsTileY / TILE_PER_CHUNK;
     Result.ChunkX = AbsTileZ / TILE_PER_CHUNK;
 
+    // TODO: DECIDE ON TILE ALIGNMENT IN CHUNKS!
     Result.Offset_.X = (real32)(AbsTileX - (Result.ChunkX * TILE_PER_CHUNK)) * World->TileSideInMeters;
     Result.Offset_.Y = (real32)(AbsTileY - (Result.ChunkY * TILE_PER_CHUNK)) * World->TileSideInMeters;
     // TODO: Move to 3D Z!!!
@@ -178,10 +179,11 @@ inline void ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEn
             Assert(Chunk);
             if(Chunk)
             {
+                bool32 NotFound = true;
                 world_entity_block *FirstBlock = &Chunk->FirstBlock;
-                for(world_entity_block *Block = FirstBlock; Block; Block = Block->Next)
+                for(world_entity_block *Block = FirstBlock; Block && NotFound; Block = Block->Next)
                 {
-                    for(uint32 Index = 0; Index < Block->EntityCount; ++Index)
+                    for(uint32 Index = 0; Index < (Block->EntityCount) && NotFound; ++Index)
                     {
                         if(Block->LowEntityIndex[Index] == LowEntityIndex)
                         {
@@ -198,9 +200,7 @@ inline void ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEn
                                     World->FirstFree = NextBlock;
                                 }
                             }
-
-                            Block = 0;
-                            break;
+                            NotFound = false;
                         }
                     }
                 }
