@@ -2,7 +2,7 @@
 #define TILE_CHUNK_SAFE_MARGIN (INT32_MAX / 64)
 #define TILE_CHUNK_UNITIALISED INT32_MAX
 
-#define TILE_PER_CHUNK 16
+#define TILES_PER_CHUNK 16
 
 inline bool32 IsCanonical(world *World, real32 TileRel)
 {
@@ -83,7 +83,7 @@ inline world_chunk * GetWorldChunk(world *World, int32 ChunkX, int32 ChunkY, int
 internal void InitialiseWorld(world *World, real32 TileSideInMeters)
 {
     World->TileSideInMeters = 1.4f;
-    World->ChunkSideInMeters = (real32)TILE_PER_CHUNK * TileSideInMeters;
+    World->ChunkSideInMeters = (real32)TILES_PER_CHUNK * TileSideInMeters;
     World->FirstFree = 0;
 
     for(uint32 ChunkIndex = 0; ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex)
@@ -125,14 +125,28 @@ inline world_position ChunkPositionFromTilePosition(world *World, int32 AbsTileX
 {
     world_position Result = {};
 
-    Result.ChunkX = AbsTileX / TILE_PER_CHUNK;
-    Result.ChunkX = AbsTileY / TILE_PER_CHUNK;
-    Result.ChunkX = AbsTileZ / TILE_PER_CHUNK;
+    Result.ChunkX = AbsTileX / TILES_PER_CHUNK;
+    Result.ChunkX = AbsTileY / TILES_PER_CHUNK;
+    Result.ChunkX = AbsTileZ / TILES_PER_CHUNK;
+    if(AbsTileX < 0)
+    {
+        --Result.ChunkX;
+    }
+    if(AbsTileY < 0)
+    {
+        --Result.ChunkY;
+    }
+    if(AbsTileZ < 0)
+    {
+        --Result.ChunkZ;
+    }
 
     // TODO: DECIDE ON TILE ALIGNMENT IN CHUNKS!
-    Result.Offset_.X = (real32)(AbsTileX - (Result.ChunkX * TILE_PER_CHUNK)) * World->TileSideInMeters;
-    Result.Offset_.Y = (real32)(AbsTileY - (Result.ChunkY * TILE_PER_CHUNK)) * World->TileSideInMeters;
+    Result.Offset_.X = (real32)((AbsTileX - TILES_PER_CHUNK / 2) - (Result.ChunkX * TILES_PER_CHUNK)) * World->TileSideInMeters;
+    Result.Offset_.Y = (real32)((AbsTileY - TILES_PER_CHUNK / 2) - (Result.ChunkY * TILES_PER_CHUNK)) * World->TileSideInMeters;
     // TODO: Move to 3D Z!!!
+
+    Assert(IsCanonical(World, Result.Offset_));
 
     return(Result);
 }
