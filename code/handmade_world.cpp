@@ -1,6 +1,6 @@
 // TODO: Think about what the real safe margin is!
-#define TILE_CHUNK_SAFE_MARGIN (INT32_MAX / 64)
-#define TILE_CHUNK_UNITIALISED INT32_MAX
+#define TILE_CHUNK_SAFE_MARGIN (INT32_MAX/64)
+#define TILE_CHUNK_UNINITIALIZED INT32_MAX
 
 #define TILES_PER_CHUNK 16
 
@@ -56,51 +56,50 @@ inline world_chunk * GetWorldChunk(world *World, int32 ChunkX, int32 ChunkY, int
             break;
         }
 
-        if(Arena && (Chunk->ChunkX != TILE_CHUNK_UNITIALISED) && (!Chunk->NextInHash))
+        if(Arena && (Chunk->ChunkX != TILE_CHUNK_UNINITIALIZED) && (!Chunk->NextInHash))
         {
             Chunk->NextInHash = PushStruct(Arena, world_chunk);
             Chunk = Chunk->NextInHash;
-            Chunk->ChunkX = TILE_CHUNK_UNITIALISED;
+            Chunk->ChunkX = TILE_CHUNK_UNINITIALIZED;
         }
 
-        if(Arena && (Chunk->ChunkX == TILE_CHUNK_UNITIALISED))
+        if(Arena && (Chunk->ChunkX == TILE_CHUNK_UNINITIALIZED))
         {
             Chunk->ChunkX = ChunkX;
             Chunk->ChunkY = ChunkY;
             Chunk->ChunkZ = ChunkZ;
 
             Chunk->NextInHash = 0;
-
             break;
         }
 
         Chunk = Chunk->NextInHash;
-    } while (Chunk);
+    } while(Chunk);
 
     return(Chunk);
 }
 
-internal void InitialiseWorld(world *World, real32 TileSideInMeters)
+internal void InitializeWorld(world *World, real32 TileSideInMeters)
 {
-    World->TileSideInMeters = 1.4f;
+    World->TileSideInMeters = TileSideInMeters;
     World->ChunkSideInMeters = (real32)TILES_PER_CHUNK * TileSideInMeters;
     World->FirstFree = 0;
 
     for(uint32 ChunkIndex = 0; ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex)
     {
-        World->ChunkHash[ChunkIndex].ChunkX = TILE_CHUNK_UNITIALISED;
+        World->ChunkHash[ChunkIndex].ChunkX = TILE_CHUNK_UNINITIALIZED;
         World->ChunkHash[ChunkIndex].FirstBlock.EntityCount = 0;
     }
 }
 
 inline void RecanonicalizeCoord(world *World, int32 *Tile, real32 *TileRel)
 {
-    // TODO: Need to do something that doesn't use the divide/nultiple method
-    // for recananicalising because this can end up rounding back on to the tile
+    // TODO: Need to do something that doesn't use the divide/multiply method
+    // for recanonicalizing because this can end up rounding back on to the tile
     // you just came from.
 
     // NOTE: Wrapping IS NOT ALLOWED, so all coordinates are assumed to be
-    // winin the safe margin!
+    // within the safe margin!
     // TODO: Assert that we are nowhere near the edges of the world.
 
     int32 Offset = RoundReal32ToInt32(*TileRel / World->ChunkSideInMeters);
@@ -126,8 +125,10 @@ inline world_position ChunkPositionFromTilePosition(world *World, int32 AbsTileX
     world_position Result = {};
 
     Result.ChunkX = AbsTileX / TILES_PER_CHUNK;
-    Result.ChunkX = AbsTileY / TILES_PER_CHUNK;
-    Result.ChunkX = AbsTileZ / TILES_PER_CHUNK;
+    Result.ChunkY = AbsTileY / TILES_PER_CHUNK;
+    Result.ChunkZ = AbsTileZ / TILES_PER_CHUNK;
+
+    // TODO: Think this through on the real stream and actually work out the math.
     if(AbsTileX < 0)
     {
         --Result.ChunkX;
@@ -159,7 +160,7 @@ inline world_difference Subtract(world *World, world_position *A, world_position
                   (real32)A->ChunkY - (real32)B->ChunkY};
     real32 dTileZ = (real32)A->ChunkZ - (real32)B->ChunkZ;
 
-    Result.dXY = World->ChunkSideInMeters * dTileXY + (A->Offset_ - B->Offset_);
+    Result.dXY = World->ChunkSideInMeters*dTileXY + (A->Offset_ - B->Offset_);
 
     // TODO: Think about what we want to do about Z
     Result.dZ = World->ChunkSideInMeters * dTileZ;
@@ -189,7 +190,7 @@ inline void ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEn
         if(OldP)
         {
             // NOTE: Pull the entity out of its old entity block
-            world_chunk *Chunk = GetWorldChunk(World, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ, Arena);
+            world_chunk *Chunk = GetWorldChunk(World, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ);
             Assert(Chunk);
             if(Chunk)
             {
@@ -197,7 +198,7 @@ inline void ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEn
                 world_entity_block *FirstBlock = &Chunk->FirstBlock;
                 for(world_entity_block *Block = FirstBlock; Block && NotFound; Block = Block->Next)
                 {
-                    for(uint32 Index = 0; Index < (Block->EntityCount) && NotFound; ++Index)
+                    for(uint32 Index = 0; (Index < Block->EntityCount) && NotFound; ++Index)
                     {
                         if(Block->LowEntityIndex[Index] == LowEntityIndex)
                         {
@@ -214,6 +215,7 @@ inline void ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEn
                                     World->FirstFree = NextBlock;
                                 }
                             }
+
                             NotFound = false;
                         }
                     }
@@ -247,5 +249,4 @@ inline void ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEn
         Assert(Block->EntityCount < ArrayCount(Block->LowEntityIndex));
         Block->LowEntityIndex[Block->EntityCount++] = LowEntityIndex;
     }
-
 }

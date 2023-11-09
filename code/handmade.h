@@ -74,7 +74,7 @@ enum entity_type
     EntityType_Hero,
     EntityType_Wall,
     EntityType_Familiar,
-    EntityType_Monster,
+    EntityType_Monstar,
 };
 
 struct low_entity
