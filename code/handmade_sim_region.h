@@ -35,6 +35,7 @@ union entity_reference
     uint32 Index;
 };
 
+// TODO: Rename sim_entity to entity!
 struct sim_entity
 {
     uint32 StorageIndex;

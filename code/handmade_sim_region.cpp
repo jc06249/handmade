@@ -8,7 +8,9 @@ internal sim_entity_hash * GetHashFromStorageIndex(sim_region *SimRegion, uint32
     uint32 HashValue = StorageIndex;
     for(uint32 Offset = 0; Offset < ArrayCount(SimRegion->Hash); ++Offset)
     {
-        sim_entity_hash *Entry = SimRegion->Hash + ((HashValue + Offset) & (ArrayCount(SimRegion->Hash) - 1));
+        uint32 HashMask = (ArrayCount(SimRegion->Hash) - 1);
+        uint32 HashIndex = ((HashValue + Offset) & HashMask);
+        sim_entity_hash *Entry = SimRegion->Hash + HashIndex;
         if(Entry->Index == 0 || Entry->Index == StorageIndex)
         {
             Result = Entry;
@@ -106,16 +108,18 @@ internal sim_entity * AddEntity(game_state *GameState, sim_region *SimRegion, ui
             Dest->P = GetSimSpaceP(SimRegion, Source);
         }
     }
+
+    return(Dest);
 }
 
 internal sim_region *BeginSim(memory_arena *SimArena, game_state *GameState, world *World, world_position Origin, rectangle2 Bounds)
 {
     // TODO: If entities were stored in the world, we wouldn't need the game state here!
 
-    // TODO: IMPORTANT: CLEAR THE HASH TABLE!!!!
     // TODO: IMPORTANT: NOTION OF ACTIVE VS. INACTIVE ENTITIES FOR THE APRON!
 
     sim_region *SimRegion = PushStruct(SimArena, sim_region);
+    ZeroStruct(SimRegion->Hash);
 
     SimRegion->World = World;
     SimRegion->Origin = Origin;
@@ -155,6 +159,8 @@ internal sim_region *BeginSim(memory_arena *SimArena, game_state *GameState, wor
             }
         }
     }
+
+    return(SimRegion);
 }
 
 internal void EndSim(sim_region *Region, game_state *GameState)
