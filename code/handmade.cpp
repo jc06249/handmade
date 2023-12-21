@@ -277,7 +277,7 @@ internal add_low_entity_result AddWall(game_state *GameState, uint32 AbsTileX, u
 
     Entity.Low->Sim.Height = GameState->World->TileSideInMeters;
     Entity.Low->Sim.Width = Entity.Low->Sim.Height;
-    AddFlag(&Entity.Low->Sim, EntityFlags_Collides);
+    AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
 
     return(Entity);
 }
@@ -311,7 +311,7 @@ internal add_low_entity_result AddPlayer(game_state *GameState)
 
     Entity.Low->Sim.Height = 0.5f; // 1.4f;
     Entity.Low->Sim.Width = 1.0f;
-    AddFlag(&Entity.Low->Sim, EntityFlags_Collides);
+    AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
 
     InitHitPoints(Entity.Low, 3);
 
@@ -333,7 +333,7 @@ internal add_low_entity_result AddMonstar(game_state *GameState, uint32 AbsTileX
 
     Entity.Low->Sim.Height = 0.5f;
     Entity.Low->Sim.Width = 1.0f;
-    AddFlag(&Entity.Low->Sim, EntityFlags_Collides);
+    AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
 
     InitHitPoints(Entity.Low, 3);
 
@@ -347,7 +347,7 @@ internal add_low_entity_result AddFamiliar(game_state *GameState, uint32 AbsTile
 
     Entity.Low->Sim.Height = 0.5f;
     Entity.Low->Sim.Width = 1.0f;
-    AddFlag(&Entity.Low->Sim, EntityFlags_Collides);
+    AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
 
     return(Entity);
 }
@@ -763,7 +763,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         if((ConHero->dSword.X != 0.0f) || (ConHero->dSword.Y != 0.0f))
                         {
                             sim_entity *Sword = Entity->Sword.Ptr;
-                            if(Sword && IsSet(Sword, EntityFlags_Nonspatial))
+                            if(Sword && IsSet(Sword, EntityFlag_Nonspatial))
                             {
                                 Sword->DistanceRemaining = 5.0f;
                                 MakeEntitySpatial(Sword, Entity->P, 5.0f * ConHero->dSword);

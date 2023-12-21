@@ -56,7 +56,7 @@ inline void UpdateMonstar(sim_region *SimRegion, sim_entity *Entity, real32 dt)
 
 inline void UpdateSword(sim_region *SimRegion, sim_entity *Entity, real32 dt)
 {
-    if(IsSet(Entity, EntityFlags_Nonspatial))
+    if(IsSet(Entity, EntityFlag_Nonspatial))
     {
 
     }

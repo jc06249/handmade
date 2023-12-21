@@ -283,7 +283,7 @@ inline void ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEn
     world_position *OldP = 0;
     world_position *NewP = 0;
 
-    if(!IsSet(&LowEntity->Sim, EntityFlags_Nonspatial) && IsValid(LowEntity->P))
+    if(!IsSet(&LowEntity->Sim, EntityFlag_Nonspatial) && IsValid(LowEntity->P))
     {
         OldP = &LowEntity->P;
     }
@@ -296,12 +296,12 @@ inline void ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEn
     if(NewP)
     {
         LowEntity->P = *NewP;
-        ClearFlag(&LowEntity->Sim, EntityFlags_Nonspatial);
+        ClearFlag(&LowEntity->Sim, EntityFlag_Nonspatial);
     }
     else
     {
         LowEntity->P = NullPosition();
-        AddFlag(&LowEntity->Sim, EntityFlags_Nonspatial);
+        AddFlag(&LowEntity->Sim, EntityFlag_Nonspatial);
     }
 
 }

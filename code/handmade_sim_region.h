@@ -39,10 +39,10 @@ union entity_reference
 enum sim_entity_flags
 {
     // TODO: Does it make more sense to have the flag be for _non_ colliding entities?
-    EntityFlags_Collides = (1 << 1),
-    EntityFlags_Nonspatial = (1 << 2),
+    EntityFlag_Collides = (1 << 1),
+    EntityFlag_Nonspatial = (1 << 2),
 
-    EntityFlags_Simming = (1 << 30),
+    EntityFlag_Simming = (1 << 30),
 };
 
 // TODO: Rename sim_entity to entity!
