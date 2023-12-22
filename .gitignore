@@ -3,3 +3,5 @@
 .vs/VSWorkspaceState.json
 .vs/handmade/v16/.suo
 .vs/handmade/v16/Browse.VC.db
+.vs
+build
