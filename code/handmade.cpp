@@ -403,6 +403,13 @@ internal void ClearCollisionRulesFor(game_state *GameState, uint32 StorageIndex)
 {
     // TODO: Need to make a better data structure that allows
     // removal of collision rules without searching the entire table
+    // NOTE: One way to make removal easy would be to always
+    // add _both_ orders of the pairs of storage indicaes to the
+    // hash table, so no matter which position the entity is in,
+    // you can always find it. Then, when you do your first pass
+    // of the free list, and when you're done, do a pass through all
+    // the new things on the free list, and remove the reverse of
+    // those pairs.
     for(uint32 HashBucket = 0; HashBucket < ArrayCount(GameState->CollisionRuleHash); ++HashBucket)
     {
         for(pairwise_collision_rule **Rule = &GameState->CollisionRuleHash[HashBucket]; *Rule; )
@@ -433,7 +440,7 @@ internal void AddCollisionRule(game_state *GameState, uint32 StorageIndexA, uint
         StorageIndexB = Temp;
     }
 
-    // TODO BETTER HASH FUNCTION
+    // TODO: BETTER HASH FUNCTION
     pairwise_collision_rule *Found = 0;
     uint32 HashBucket = StorageIndexA & (ArrayCount(GameState->CollisionRuleHash) - 1);
     for(pairwise_collision_rule *Rule = GameState->CollisionRuleHash[HashBucket]; Rule; Rule = Rule->NextInHash)
