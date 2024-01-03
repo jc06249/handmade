@@ -2,14 +2,12 @@
 
 struct world_position
 {
-    // TODO: Puzzler!  How can we get rid of abstile* here,
-    // and still allow references to entities to be able to figure
-    // out _whre they are_ (or rather, which world_chunk they are
-    // in?)
+    // TODO: It seems like we need to store ChunkX/Y/Z with each
+    // entity because even thouhg the sim region gather doesn't need it
+    // at first, and we could get by without it, entity references pull
+    // in entities WOTHOUT going through their world_chunk, and thus
+    // still need to know the ChunkX/Y/Z
 
-    // NOTE: These are fixed point tile locations. The high
-    // bits are tile chunk index, and the low bits are the tile
-    // index in the chunk.
     int32 ChunkX;
     int32 ChunkY;
     int32 ChunkZ;

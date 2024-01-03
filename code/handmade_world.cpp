@@ -22,7 +22,7 @@ inline bool32 IsValid(world_position P)
 inline bool32 IsCanonical(real32 ChunkDim, real32 TileRel)
 {
     // TODO: Fix floating point math so this can be exact?
-    real32 Epsilon = 0.0001f;
+    real32 Epsilon = 0.01f;
     bool32 Result = ((TileRel >= -(0.5f * ChunkDim + Epsilon)) &&
                      (TileRel <= (0.5f * ChunkDim + Epsilon)));
 
@@ -41,6 +41,17 @@ inline bool32 IsCanonical(world *World, v3 Offset)
 inline bool32 AreInSameChunk(world *World, world_position *A, world_position *B)
 {
     Assert(IsCanonical(World, A->Offset_));
+    Assert(IsCanonical(World, B->Offset_));
+
+    bool32 Result = ((A->ChunkX == B->ChunkX) &&
+                     (A->ChunkY == B->ChunkY) &&
+                     (A->ChunkZ == B->ChunkZ));
+
+    return(Result);
+}
+
+inline bool32 AreInSameChunk(world *World, world_chunk *A, world_position *B)
+{
     Assert(IsCanonical(World, B->Offset_));
 
     bool32 Result = ((A->ChunkX == B->ChunkX) &&
@@ -146,7 +157,7 @@ inline world_position ChunkPositionFromTilePosition(world *World, int32 AbsTileX
 {
     world_position BasePos = {};
 
-    v3 Offset = Hadamard(World->ChunkDimInMeters, V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ));
+    v3 Offset = World->TileSideInMeters * V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ);
     world_position Result = MapIntoChunkSpace(World, BasePos, Offset);
 
     Assert(IsCanonical(World, Result.Offset_));
