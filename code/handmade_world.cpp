@@ -108,13 +108,13 @@ inline world_chunk * GetWorldChunk(world *World, int32 ChunkX, int32 ChunkY, int
     return(Chunk);
 }
 
-internal void InitializeWorld(world *World, real32 TileSideInMeters)
+internal void InitializeWorld(world *World, real32 TileSideInMeters, real32 TileDepthInMeters)
 {
     World->TileSideInMeters = TileSideInMeters;
     World->ChunkDimInMeters = {(real32)TILES_PER_CHUNK * TileSideInMeters,
                                (real32)TILES_PER_CHUNK * TileSideInMeters,
-                               (real32)TileSideInMeters};
-    World->TileDepthInMeters = (real32)TileSideInMeters;
+                               TileDepthInMeters};
+    World->TileDepthInMeters = (real32)TileDepthInMeters;
     World->FirstFree = 0;
 
     for(uint32 ChunkIndex = 0; ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex)
@@ -157,7 +157,8 @@ inline world_position ChunkPositionFromTilePosition(world *World, int32 AbsTileX
 {
     world_position BasePos = {};
 
-    v3 Offset = World->TileSideInMeters * V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ);
+    v3 TileDim = V3(World->TileSideInMeters, World->TileSideInMeters, World->TileDepthInMeters);
+    v3 Offset = Hadamard(TileDim, V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ));
     world_position Result = MapIntoChunkSpace(World, BasePos, AdditionOffset + Offset);
 
     Assert(IsCanonical(World, Result.Offset_));
