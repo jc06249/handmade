@@ -270,6 +270,16 @@ internal add_low_entity_result AddGroundedEntity(game_state *GameState, entity_t
     return(Entity);
 }
 
+internal add_low_entity_result AddStandardRoom(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+{
+    world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
+    add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Space, P, GameState->StandardRoomCollision);
+
+    AddFlags(&Entity.Low->Sim, EntityFlag_Traversable);
+
+    return(Entity);
+}
+
 internal add_low_entity_result AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
 {
     world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
@@ -377,6 +387,19 @@ inline void PushBitmap(entity_visible_piece_group *Group, loaded_bitmap *Bitmap,
 inline void PushRect(entity_visible_piece_group *Group, v2 Offset, real32 OffsetZ, v2 Dim, v4 Color, real32 EntityZC = 1.0f)
 {
     PushPiece(Group, 0, Offset, OffsetZ, V2(0, 0), Dim, Color, EntityZC);
+}
+
+inline void PushRectOutline(entity_visible_piece_group *Group, v2 Offset, real32 OffsetZ, v2 Dim, v4 Color, real32 EntityZC = 1.0f)
+{
+    real32 Thickness = 0.1;
+
+    // NOTE: Top and bottom
+    PushPiece(Group, 0, Offset - V2(0, 0.5f * Dim.Y), OffsetZ, V2(0, 0), V2(Dim.X, Thickness), Color, EntityZC);
+    PushPiece(Group, 0, Offset + V2(0, 0.5f * Dim.Y), OffsetZ, V2(0, 0), V2(Dim.X, Thickness), Color, EntityZC);
+
+    // NOTE: Left and rigth
+    PushPiece(Group, 0, Offset + V2(0.5f * Dim.X, 0), OffsetZ, V2(0, 0), V2(Thickness, Dim.Y ), Color, EntityZC);
+    PushPiece(Group, 0, Offset - V2(0.5f * Dim.X, 0), OffsetZ, V2(0, 0), V2(Thickness, Dim.Y ), Color, EntityZC);
 }
 
 internal void DrawHitPoints(sim_entity *Entity, entity_visible_piece_group *PieceGroup)
@@ -513,6 +536,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     if(!Memory->IsInitialised)
     {
+        uint32 TilesPerWidth = 17;
+        uint32 TilesPerHeight = 9;
+
         // TODO: Talk about this soon!  Let's start partitioning our memory space!
         InitializeArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state), (uint8 *)Memory->PermanentStorage + sizeof(game_state));
 
@@ -532,13 +558,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                                 GameState->World->TileSideInMeters,
                                                                 2.0f * GameState->World->TileSideInMeters,
                                                                 1.1f * GameState->World->TileDepthInMeters);
-        GameState->PlayerCollision = MakeSimpleGroundedCollision(GameState, 0.1f, 0.5f, 1.2f);
+        GameState->PlayerCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 1.2f);
         GameState->MonstarCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.5f);
         GameState->FamiliarCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.5f);
         GameState->WallCollision = MakeSimpleGroundedCollision(GameState,
                                                                GameState->World->TileSideInMeters,
                                                                GameState->World->TileSideInMeters,
                                                                GameState->World->TileDepthInMeters);
+        GameState->StandardRoomCollision = MakeSimpleGroundedCollision(GameState,
+                                                                       TilesPerWidth * GameState->World->TileSideInMeters,
+                                                                       TilesPerHeight * GameState->World->TileSideInMeters,
+                                                                       0.9f * GameState->World->TileDepthInMeters);
 
         GameState->Backdrop = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp");
         GameState->Shadow = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_shadow.bmp");
@@ -574,9 +604,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         ++Bitmap;
 
         uint32 RandomNumberIndex = 0;
-        uint32 TilesPerWidth = 17;
-        uint32 TilesPerHeight = 9;
-        
+
         uint32 ScreenBaseX = 0;
         uint32 ScreenBaseY = 0;
         uint32 ScreenBaseZ = 0;
@@ -626,6 +654,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             {
                 DoorTop = true;
             }
+
+            AddStandardRoom(GameState,
+                            ScreenX * TilesPerWidth + TilesPerWidth / 2,
+                            ScreenY * TilesPerHeight + TilesPerHeight / 2,
+                            AbsTileZ);
 
             for(uint32 TileY = 0; TileY < TilesPerHeight; ++TileY)
             {
@@ -979,6 +1012,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     PushBitmap(&PieceGroup, &GameState->Shadow, V2(0, 0), 0, HeroBitmaps->Align, ShadowAlpha);
                     PushBitmap(&PieceGroup, &HeroBitmaps->Torso, V2(0, 0), 0, HeroBitmaps->Align);
                     DrawHitPoints(Entity, &PieceGroup);
+                } break;
+
+                case EntityType_Space:
+                {
+                    for(uint32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; ++VolumeIndex)
+                    {
+                        sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
+                        PushRectOutline(&PieceGroup, Volume->OffsetP.XY, 0, Volume->Dim.XY, V4(0, 0.5f, 1, 0.0f));
+                    }
                 } break;
 
                 default:

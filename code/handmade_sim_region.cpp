@@ -288,21 +288,24 @@ internal bool32 CanCollide(game_state *GameState, sim_entity *A,sim_entity *B)
             B = Temp;
         }
 
-        if(!IsSet(A, EntityFlag_Nonspatial) &&
-           !IsSet(B, EntityFlag_Nonspatial))
+        if(IsSet(A, EntityFlag_Collides) && IsSet(B, EntityFlag_Collides))
         {
-            // TODO: Property-based logic goes here
-            Result = true;
-        }
-
-        // TODO BETTER HASH FUNCTION
-        uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
-        for(pairwise_collision_rule *Rule = GameState->CollisionRuleHash[HashBucket]; Rule; Rule = Rule->NextInHash)
-        {
-            if((Rule->StorageIndexA == A->StorageIndex) && (Rule->StorageIndexB == B->StorageIndex))
+            if(!IsSet(A, EntityFlag_Nonspatial) &&
+               !IsSet(B, EntityFlag_Nonspatial))
             {
-                Result = Rule->CanCollide;
-                break;
+                // TODO: Property-based logic goes here
+                Result = true;
+            }
+
+            // TODO BETTER HASH FUNCTION
+            uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
+            for(pairwise_collision_rule *Rule = GameState->CollisionRuleHash[HashBucket]; Rule; Rule = Rule->NextInHash)
+            {
+                if((Rule->StorageIndexA == A->StorageIndex) && (Rule->StorageIndexB == B->StorageIndex))
+                {
+                    Result = Rule->CanCollide;
+                    break;
+                }
             }
         }
     }
@@ -572,7 +575,7 @@ internal void MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entit
             sim_entity *TestEntity = SimRegion->Entities + TestHighEntityIndex;
             if(CanOverlap(GameState, Entity, TestEntity))
             {
-                rectangle3 TestEntityRect = RectCenterDim(TestEntity->P + Entity->Collision->TotalVolume.OffsetP, TestEntity->Collision->TotalVolume.Dim);
+                rectangle3 TestEntityRect = RectCenterDim(TestEntity->P + TestEntity->Collision->TotalVolume.OffsetP, TestEntity->Collision->TotalVolume.Dim);
                 if(RectanglesIntersect(EntityRect, TestEntityRect))
                 {
                     HandleOverlap(GameState, Entity, TestEntity, dt, &Ground);

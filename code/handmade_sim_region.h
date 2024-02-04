@@ -7,10 +7,11 @@ struct move_spec
     real32 Drag;
 };
 
-
 enum entity_type
 {
     EntityType_Null,
+
+    EntityType_Space,
 
     EntityType_Hero,
     EntityType_Wall,
@@ -23,7 +24,7 @@ enum entity_type
 #define HIT_POINT_SUB_COUNT 4
 struct hit_point
 {
-    //TODO: Bake this down into one variable
+    // TODO: Bake this down into one variable
     uint8 Flags;
     uint8 FilledAmount;
 };
@@ -35,14 +36,15 @@ union entity_reference
     uint32 Index;
 };
 
-
 enum sim_entity_flags
 {
     // TODO: Does it make more sense to have the flag be for _non_ colliding entities?
+    // TODO: Collisdes and ZSupported probably can be removed now/soon
     EntityFlag_Collides = (1 << 0),
     EntityFlag_Nonspatial = (1 << 1),
     EntityFlag_Moveable = (1 << 2),
-    EntityFlag_ZSupported = (1 << 4),
+    EntityFlag_ZSupported = (1 << 3),
+    EntityFlag_Traversable = (1 << 4),
 
     EntityFlag_Simming = (1 << 30),
 };
@@ -68,7 +70,7 @@ struct sim_entity_collision_volume_group
 // TODO: Rename sim_entity to entity!
 struct sim_entity
 {
-    //NOTE: These are only for the sim region
+    // NOTE: These are only for the sim region
     world_chunk *OldChunk;
     uint32 StorageIndex;
     bool32 Updatable;
