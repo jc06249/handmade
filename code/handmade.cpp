@@ -689,10 +689,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         ShouldBeDoor = true;
                     }
 
-
                     if(ShouldBeDoor)
                     {
-                        AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
+                        if(ScreenIndex == 0)
+                        {
+                            AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
+                        }
                     }
                     else if(CreatedZDoor){
                         if((TileX == 10) && (TileY ==5))
