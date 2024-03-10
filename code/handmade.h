@@ -227,8 +227,9 @@ struct ground_buffer
 struct game_state
 {
     memory_arena WorldArena;
-    memory_arena TransientArena;
     world *World;
+
+    real32 TypicalFloorHeight = 3.0f;
 
     // TODO: Should we allow split-screen?
     uint32 CameraFollowingEntityIndex;
@@ -252,6 +253,7 @@ struct game_state
     loaded_bitmap Stairwell;
 
     real32 MetersToPixels;
+    real32 PixelsToMeters;
 
     // TODO: Must be power of two
     pairwise_collision_rule *CollisionRuleHash[256];
