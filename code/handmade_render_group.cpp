@@ -115,14 +115,13 @@ internal void DrawRectangleSlowly(loaded_bitmap *Buffer, v2 Origin, v2 XAxis, v2
     if(XMax > WidthMax) {XMax = WidthMax;}
     if(YMax > HeightMax) {YMax = HeightMax;}
 
-    uint8 *Row ((uint8 *)Buffer->Memory +
-                XMin * BITMAP_BYTES_PER_PIXEL +
-                YMin * Buffer->Pitch);
-
-    for(int Y = YMin; Y < YMax; ++Y)
+    uint8 *Row = ((uint8 *)Buffer->Memory +
+                  XMin * BITMAP_BYTES_PER_PIXEL +
+                  YMin * Buffer->Pitch);
+    for(int Y = YMin; Y <= YMax; ++Y)
     {
         uint32 *Pixel = (uint32 *)Row;
-        for(int X = XMin; X < XMax; ++X)
+        for(int X = XMin; X <= XMax; ++X)
         {
 #if 1
             v2 PixelP = V2i(X, Y);
@@ -142,14 +141,16 @@ internal void DrawRectangleSlowly(loaded_bitmap *Buffer, v2 Origin, v2 XAxis, v2
             {
                 real32 U = InvXAxisLengthSq * Inner(d, XAxis);
                 real32 V = InvYAxisLengthSq * Inner(d, YAxis);
+
 #if 0
-                // TODO : SSE clamping.
+                // TODO: SSE clamping.
                 Assert((U >= 0.0f) && (U <= 1.0f));
                 Assert((V >= 0.0f) && (V <= 1.0f));
 #endif
+
                 // TODO: Formalize texture boundaries!!!
-                real32 tX = 1.0f + ((U * (real32)(Texture->Width - 3)));
-                real32 tY = 1.0f + ((V * (real32)(Texture->Height - 3)));
+                real32 tX = ((U * (real32)(Texture->Width - 2)));
+                real32 tY = ((V * (real32)(Texture->Height - 2)));
 
                 int32 X = (int32)tX;
                 int32 Y = (int32)tY;
@@ -158,7 +159,7 @@ internal void DrawRectangleSlowly(loaded_bitmap *Buffer, v2 Origin, v2 XAxis, v2
                 real32 fY = tY - (real32)Y;
 
                 Assert((X >= 0) && (X < Texture->Width));
-                Assert((Y >= 0) && (X < Texture->Height));
+                Assert((Y >= 0) && (Y < Texture->Height));
 
                 uint8 *TexelPtr = ((uint8 *)Texture->Memory) + Y * Texture->Pitch + X * sizeof(uint32);
                 uint32 TexelPtrA = *(uint32 *)(TexelPtr);
@@ -166,7 +167,7 @@ internal void DrawRectangleSlowly(loaded_bitmap *Buffer, v2 Origin, v2 XAxis, v2
                 uint32 TexelPtrC = *(uint32 *)(TexelPtr + Texture->Pitch);
                 uint32 TexelPtrD = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
 
-                //TODO: Color.a!!
+                // TODO: Color.a!!
                 v4 TexelA = {(real32)((TexelPtrA >> 16) & 0xFF),
                              (real32)((TexelPtrA >> 8) & 0xFF),
                              (real32)((TexelPtrA >> 0) & 0xFF),
@@ -189,6 +190,7 @@ internal void DrawRectangleSlowly(loaded_bitmap *Buffer, v2 Origin, v2 XAxis, v2
                 TexelB = SRGB255ToLinear1(TexelB);
                 TexelC = SRGB255ToLinear1(TexelC);
                 TexelD = SRGB255ToLinear1(TexelD);
+
 #if 1
                 v4 Texel = Lerp(Lerp(TexelA, fX, TexelB),
                                 fY,
@@ -196,6 +198,7 @@ internal void DrawRectangleSlowly(loaded_bitmap *Buffer, v2 Origin, v2 XAxis, v2
 #else
                 v4 Texel = TexelA;
 #endif
+
                 Texel = Hadamard(Texel, Color);
 
                 v4 Dest = {(real32)((*Pixel >> 16) & 0xFF),
@@ -208,6 +211,7 @@ internal void DrawRectangleSlowly(loaded_bitmap *Buffer, v2 Origin, v2 XAxis, v2
 
                 v4 Blended = (1.0f - Texel.a) * Dest + Texel;
 
+                // NOTE: Go from "linear" brightness space to sRGB
                 v4 Blended255 = Linear1ToSRGB255(Blended);
 
                 *Pixel = (((uint32)(Blended255.a + 0.5f) << 24) |
@@ -218,6 +222,7 @@ internal void DrawRectangleSlowly(loaded_bitmap *Buffer, v2 Origin, v2 XAxis, v2
 #else
             *Pixel = Color32;
 #endif
+
             ++Pixel;
         }
 
@@ -422,10 +427,11 @@ internal void RenderGroupToOutput(render_group *RenderGroup, loaded_bitmap *Outp
             case RenderGroupEntryType_render_entry_bitmap:
             {
                 render_entry_bitmap *Entry = (render_entry_bitmap *)Data;
+#if 0
                 v2 P = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
                 Assert(Entry->Bitmap);
                 DrawBitmap(OutputTarget, Entry->Bitmap, P.x, P.y, Entry->A);
-
+#endif
                 BaseAddress += sizeof(*Entry);
             } break;
 
