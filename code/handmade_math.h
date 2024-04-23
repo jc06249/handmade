@@ -36,7 +36,15 @@ union v4
 {
     struct
     {
-        real32 x, y, z, w;
+        union
+        {
+            v3 xyz;
+            struct
+            {
+                real32 x, y, z;
+            };
+        };
+        real32 w;
     };
     struct
     {
@@ -393,6 +401,13 @@ inline real32 Length(v3 A)
     return(Result);
 }
 
+inline v3 Normalize(v3 A)
+{
+    v3 Result = A * (1.0f / Length(A));
+
+    return(Result);
+}
+
 inline v3 Clamp01(v3 Value)
 {
     v3 Result;
@@ -400,6 +415,13 @@ inline v3 Clamp01(v3 Value)
      Result.x = Clamp01(Value.x);
      Result.y = Clamp01(Value.y);
      Result.z = Clamp01(Value.z);
+
+    return(Result);
+}
+
+inline v3 Lerp(v3 A, real32 t, v3 B)
+{
+    v3 Result = (1.0f - t) * A + t * B;
 
     return(Result);
 }
