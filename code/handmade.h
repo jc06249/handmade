@@ -3,6 +3,14 @@
 /*
     TODO:
 
+    - Rendering
+        - Lighting
+        - Straighten out all coordinate systems!
+            - Screen
+            - World
+            - Texture
+        - Optimization
+
     ARCHITECTURE EXPLORATION
     - Z!
         - Need to make a solid concept of ground levels so the camera can
@@ -69,7 +77,6 @@
         - Particle systems
 
     PRODUCTION
-    - Rendering
     -> GAME
         - Entity systems
         - World generation
@@ -161,14 +168,7 @@ inline void ZeroSize(memory_index Size, void *Ptr)
 #include "handmade_world.h"
 #include "handmade_sim_region.h"
 #include "handmade_entity.h"
-
-struct loaded_bitmap
-{
-    int32 Width;
-    int32 Height;
-    int32 Pitch;
-    void *Memory;
-};
+#include "handmade_render_group.h"
 
 struct hero_bitmaps
 {
@@ -261,6 +261,9 @@ struct game_state
     sim_entity_collision_volume_group *StandardRoomCollision;
 
     real32 Time;
+
+    loaded_bitmap TestDiffuse;
+    loaded_bitmap TestNormal;
 };
 
 struct transient_state
@@ -269,6 +272,11 @@ struct transient_state
     memory_arena TranArena;
     uint32 GroundBufferCount;
     ground_buffer *GroundBuffers;
+
+    uint32 EnvMapWidth;
+    uint32 EnvMapHeight;
+    // NOTE: 0 is bottom, 1 is middle, 2 is top
+    environment_map EnvMaps[3];
 };
 
 inline low_entity * GetLowEntity(game_state *GameState, uint32 Index)
