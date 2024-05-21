@@ -415,40 +415,6 @@ internal void DrawRectangleSlowly(loaded_bitmap *Buffer, v2 Origin, v2 XAxis, v2
     }
 }
 
-internal void ChangeSaturation(loaded_bitmap *Buffer,  real32 Level)
-{
-    uint8 *DestRow = ((uint8 *)Buffer->Memory);
-    for(int32 Y = 0; Y < Buffer->Height; ++Y)
-    {
-        uint32 *Dest = (uint32 *)DestRow;
-        for(int32 X = 0; X < Buffer->Width; ++X)
-        {
-            v4 D = {(real32)((*Dest >> 16) & 0xFF),
-                    (real32)((*Dest >> 8) & 0xFF),
-                    (real32)((*Dest >> 0) & 0xFF),
-                    (real32)((*Dest >> 24) & 0xFF)};
-
-            D = SRGB255ToLinear1(D);
-
-            real32 Avg = (1.0f/ 3.0f) * (D.r + D.g + D.b);
-            v3 Delta = V3(D.r - Avg, D.g - Avg, D.b - Avg);
-
-            v4 Result = ToV4(V3(Avg, Avg, Avg) + Level * Delta, D.a);
-
-            Result = Linear1ToSRGB255(Result);
-
-            *Dest = (((uint32)(Result.a + 0.5f) << 24) |
-                     ((uint32)(Result.r + 0.5f) << 16) |
-                     ((uint32)(Result.g + 0.5f) << 8) |
-                     ((uint32)(Result.b + 0.5f) << 0));
-
-            ++Dest;
-        }
-
-        DestRow += Buffer->Pitch;
-    }
-}
-
 internal void DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap, real32 RealX, real32 RealY, real32 CAlpha = 1.0f)
 {
     int32 MinX = RoundReal32ToInt32(RealX);
@@ -519,6 +485,40 @@ internal void DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap, real32 Re
 
         DestRow += Buffer->Pitch;
         SourceRow += Bitmap->Pitch;
+    }
+}
+
+internal void ChangeSaturation(loaded_bitmap *Buffer,  real32 Level)
+{
+    uint8 *DestRow = ((uint8 *)Buffer->Memory);
+    for(int32 Y = 0; Y < Buffer->Height; ++Y)
+    {
+        uint32 *Dest = (uint32 *)DestRow;
+        for(int32 X = 0; X < Buffer->Width; ++X)
+        {
+            v4 D = {(real32)((*Dest >> 16) & 0xFF),
+                    (real32)((*Dest >> 8) & 0xFF),
+                    (real32)((*Dest >> 0) & 0xFF),
+                    (real32)((*Dest >> 24) & 0xFF)};
+
+            D = SRGB255ToLinear1(D);
+
+            real32 Avg = (1.0f/ 3.0f) * (D.r + D.g + D.b);
+            v3 Delta = V3(D.r - Avg, D.g - Avg, D.b - Avg);
+
+            v4 Result = ToV4(V3(Avg, Avg, Avg) + Level * Delta, D.a);
+
+            Result = Linear1ToSRGB255(Result);
+
+            *Dest = (((uint32)(Result.a + 0.5f) << 24) |
+                     ((uint32)(Result.r + 0.5f) << 16) |
+                     ((uint32)(Result.g + 0.5f) << 8) |
+                     ((uint32)(Result.b + 0.5f) << 0));
+
+            ++Dest;
+        }
+
+        DestRow += Buffer->Pitch;
     }
 }
 
@@ -608,15 +608,15 @@ internal void DrawMatte(loaded_bitmap *Buffer, loaded_bitmap *Bitmap, real32 Rea
 
 inline v2 GetRenderEntityBasisP(render_group *RenderGroup, render_entity_basis *EntityBasis, v2 ScreenCenter)
 {
+    // TODO: ZHANDLING
+
     v3 EntityBaseP = EntityBasis->Basis->P;
     real32 ZFudge = (1.0f + 0.1f * (EntityBaseP.z + EntityBasis->OffsetZ));
 
-    real32 EntityGroundPointX = ScreenCenter.x + RenderGroup->MetersToPixels * ZFudge * EntityBaseP.x;
-    real32 EntityGroundPointY = ScreenCenter.y - RenderGroup->MetersToPixels * ZFudge * EntityBaseP.y;
-    real32 EntityZ = -RenderGroup->MetersToPixels * EntityBaseP.z;
+    v2 EntityGroundPoint = ScreenCenter + RenderGroup->MetersToPixels * ZFudge * EntityBaseP.xy;
+    real32 EntityZ = RenderGroup->MetersToPixels * EntityBaseP.z;
 
-    v2 Center = {EntityGroundPointX + EntityBasis->Offset.x,
-                EntityGroundPointY + EntityBasis->Offset.y + EntityBasis->EntityZC * EntityZ};
+    v2 Center = EntityGroundPoint + EntityBasis->Offset + V2(0, EntityBasis->EntityZC * EntityZ);
 
     return(Center);
 }
@@ -655,11 +655,11 @@ internal void RenderGroupToOutput(render_group *RenderGroup, loaded_bitmap *Outp
             case RenderGroupEntryType_render_entry_bitmap:
             {
                 render_entry_bitmap *Entry = (render_entry_bitmap *)Data;
-#if 0
+
                 v2 P = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
                 Assert(Entry->Bitmap);
-                DrawBitmap(OutputTarget, Entry->Bitmap, P.x, P.y, Entry->A);
-#endif
+                DrawBitmap(OutputTarget, Entry->Bitmap, P.x, P.y, Entry->Color.a);
+
                 BaseAddress += sizeof(*Entry);
             } break;
 
@@ -762,7 +762,7 @@ inline void PushPiece(render_group *Group, loaded_bitmap *Bitmap, v2 Offset, rea
     {
         Piece->EntityBasis.Basis = Group->DefaultBasis;
         Piece->Bitmap = Bitmap;
-        Piece->EntityBasis.Offset = Group->MetersToPixels * V2(Offset.x, -Offset.y) - Align;
+        Piece->EntityBasis.Offset = Group->MetersToPixels * V2(Offset.x, Offset.y) - Align;
         Piece->EntityBasis.OffsetZ = OffsetZ;
         Piece->EntityBasis.EntityZC = EntityZC;
         Piece->Color = Color;
@@ -782,7 +782,7 @@ inline void PushRect(render_group *Group, v2 Offset, real32 OffsetZ, v2 Dim, v4 
         v2 HalfDim = 0.5f * Group->MetersToPixels * Dim;
 
         Piece->EntityBasis.Basis = Group->DefaultBasis;
-        Piece->EntityBasis.Offset = Group->MetersToPixels * V2(Offset.x, -Offset.y) - HalfDim;
+        Piece->EntityBasis.Offset = Group->MetersToPixels * V2(Offset.x, Offset.y) - HalfDim;
         Piece->EntityBasis.OffsetZ = OffsetZ;
         Piece->EntityBasis.EntityZC = EntityZC;
         Piece->Color = Color;
