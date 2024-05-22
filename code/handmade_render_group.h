@@ -17,9 +17,14 @@
 
        // TODO: ZHANDLING
 
+    5) All color values specified to the renderer are V4's are in 
+       NON-premultiplied alpha.
+
 */
 struct loaded_bitmap
 {
+    v2 Align;
+
     int32 Width;
     int32 Height;
     int32 Pitch;
@@ -40,15 +45,13 @@ struct render_basis
 struct render_entity_basis
 {
     render_basis *Basis;
-    v2 Offset;
-    real32 OffsetZ;
+    v3 Offset;
     real32 EntityZC;
 };
 
 enum render_group_entry_type
 {
     RenderGroupEntryType_render_entry_clear,
-    RenderGroupEntryType_render_entry_saturation,
     RenderGroupEntryType_render_entry_bitmap,
     RenderGroupEntryType_render_entry_rectangle,
     RenderGroupEntryType_render_entry_coordinate_system,
@@ -110,5 +113,12 @@ struct render_group
     uint8 *PushBufferBase;
 };
 
+// NOTE: Renderer API
+#if 0
+inline void PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v2 Offset, real32 OffsetZ, v4 Color = V4( 1, 1, 1, 1))
+inline void PushRect(render_group *Group, v2 Offset, real32 OffsetZ, v2 Dim, v4 Color)
+inline void PushRectOutline(render_group *Group, v2 Offset, real32 OffsetZ, v2 Dim, v4 Color)
+inline void Clear(render_group *Group, v4 Color)
+#endif
 #define HANDMADE_RENDER_GROUP_H
 #endif
