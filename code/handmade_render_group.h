@@ -13,11 +13,13 @@
        will be explicitly marked as such.
 
     4) Z is a special coordinate because it is broken up into descrete slices,
-       and the renderer actually understands these slices (potentially).
+       and the renderer actually understands these slices. Z slices are what
+       control the _scaling_ of things, whereas Z offsets inside a slice are
+       what control Y offsetting.
 
        // TODO: ZHANDLING
 
-    5) All color values specified to the renderer are V4's are in 
+    5) All color values specified to the renderer are V4's are in
        NON-premultiplied alpha.
 
 */
@@ -46,7 +48,6 @@ struct render_entity_basis
 {
     render_basis *Basis;
     v3 Offset;
-    real32 EntityZC;
 };
 
 enum render_group_entry_type
@@ -105,6 +106,8 @@ struct render_entry_rectangle
 
 struct render_group
 {
+    real32 GlobalAlpha;
+
     render_basis *DefaultBasis;
     real32 MetersToPixels;
 

@@ -606,22 +606,34 @@ internal void DrawMatte(loaded_bitmap *Buffer, loaded_bitmap *Bitmap, real32 Rea
     }
 }
 
-inline v2 GetRenderEntityBasisP(render_group *RenderGroup, render_entity_basis *EntityBasis, v2 ScreenCenter)
+struct entity_basis_p_result
+{
+    v2 P;
+    real32 Scale;
+};
+
+inline entity_basis_p_result GetRenderEntityBasisP(render_group *RenderGroup, render_entity_basis *EntityBasis, v2 ScreenCenter)
 {
     // TODO: Figure out exactly how z-based XY displacement should work.
 
-    v3 EntityBaseP = RenderGroup->MetersToPixels * EntityBasis->Basis->P;
-    real32 ZFudge = (1.0f + 0.1f * EntityBaseP.z);
-    v2 EntityGroundPoint = ScreenCenter + ZFudge * EntityBaseP.xy + EntityBasis->Offset.xy;
-    v2 Center = EntityGroundPoint + V2(0, EntityBaseP.z + EntityBasis->Offset.z);
+    entity_basis_p_result Result;
 
-    return(Center);
+    v3 EntityBaseP = RenderGroup->MetersToPixels * EntityBasis->Basis->P;
+    real32 ZFudge = 1.0f + 0.002f * EntityBaseP.z;
+    v2 EntityGroundPoint = ScreenCenter + ZFudge * (EntityBaseP.xy + EntityBasis->Offset.xy);
+    v2 Center = EntityGroundPoint; // + V2(0, EntityBaseP.z + EntityBasis->Offset.z);
+
+    Result.P = Center;
+    Result.Scale = ZFudge;
+
+    return(Result);
 }
 
 internal void RenderGroupToOutput(render_group *RenderGroup, loaded_bitmap *OutputTarget)
 {
     v2 ScreenCenter = {0.5f * (real32)OutputTarget->Width,
                        0.5f * (real32)OutputTarget->Height};
+    real32 PixelsToMeters = 1.0f / RenderGroup->MetersToPixels;
 
     for(uint32 BaseAddress = 0; BaseAddress < RenderGroup->PushBufferSize;)
     {
@@ -644,9 +656,16 @@ internal void RenderGroupToOutput(render_group *RenderGroup, loaded_bitmap *Outp
             {
                 render_entry_bitmap *Entry = (render_entry_bitmap *)Data;
 
-                v2 P = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
+                entity_basis_p_result Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
                 Assert(Entry->Bitmap);
+#if 0
                 DrawBitmap(OutputTarget, Entry->Bitmap, P.x, P.y, Entry->Color.a);
+#else
+                DrawRectangleSlowly(OutputTarget, Basis.P, Basis.Scale * V2i(Entry->Bitmap->Width, 0), Basis.Scale * V2i(0, Entry->Bitmap->Height), Entry->Color,
+                                    Entry->Bitmap,
+                                    0, 0, 0, 0,
+                                    PixelsToMeters);
+#endif
 
                 BaseAddress += sizeof(*Entry);
             } break;
@@ -654,8 +673,8 @@ internal void RenderGroupToOutput(render_group *RenderGroup, loaded_bitmap *Outp
             case RenderGroupEntryType_render_entry_rectangle:
             {
                 render_entry_rectangle *Entry = (render_entry_rectangle *)Data;
-                v2 P = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
-                DrawRectangle(OutputTarget, P, P + Entry->Dim, Entry->Color);
+                entity_basis_p_result Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
+                // DrawRectangle(OutputTarget, Basis.P, Basis.P + Basis.Scale * Entry->Dim, Entry->Color);
 
                 BaseAddress += sizeof(*Entry);
             } break;
@@ -673,7 +692,7 @@ internal void RenderGroupToOutput(render_group *RenderGroup, loaded_bitmap *Outp
                                     Entry->Texture,
                                     Entry->NormalMap,
                                     Entry->Top, Entry->Middle, Entry->Bottom,
-                                    1.0f / RenderGroup->MetersToPixels);
+                                    PixelsToMeters);
 
                 v4 Color = {1, 1, 0, 1};
                 v2 Dim = {2, 2};
@@ -718,6 +737,8 @@ internal render_group *AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBu
     Result->MaxPushBufferSize = MaxPushBufferSize;
     Result->PushBufferSize = 0;
 
+    Result->GlobalAlpha = 1.0f;
+
     return(Result);
 }
 
@@ -751,7 +772,7 @@ inline void PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset, v4
         Entry->EntityBasis.Basis = Group->DefaultBasis;
         Entry->Bitmap = Bitmap;
         Entry->EntityBasis.Offset = Group->MetersToPixels * Offset - V3(Bitmap->Align, 0);
-        Entry->Color = Color;
+        Entry->Color = Group->GlobalAlpha * Color;
     }
 }
 
