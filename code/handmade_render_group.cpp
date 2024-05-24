@@ -614,12 +614,11 @@ struct entity_basis_p_result
 
 inline entity_basis_p_result GetRenderEntityBasisP(render_group *RenderGroup, render_entity_basis *EntityBasis, v2 ScreenCenter)
 {
-    // TODO: Figure out exactly how z-based XY displacement should work.
-
     entity_basis_p_result Result;
 
+    // TODO: Figure out exactly how z-based XY displacement should work.
     v3 EntityBaseP = RenderGroup->MetersToPixels * EntityBasis->Basis->P;
-    real32 ZFudge = 1.0f + 0.002f * EntityBaseP.z;
+    real32 ZFudge = 1.0f + 0.0015f * EntityBaseP.z;
     v2 EntityGroundPoint = ScreenCenter + ZFudge * (EntityBaseP.xy + EntityBasis->Offset.xy);
     v2 Center = EntityGroundPoint; // + V2(0, EntityBaseP.z + EntityBasis->Offset.z);
 
@@ -674,7 +673,7 @@ internal void RenderGroupToOutput(render_group *RenderGroup, loaded_bitmap *Outp
             {
                 render_entry_rectangle *Entry = (render_entry_rectangle *)Data;
                 entity_basis_p_result Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
-                // DrawRectangle(OutputTarget, Basis.P, Basis.P + Basis.Scale * Entry->Dim, Entry->Color);
+                DrawRectangle(OutputTarget, Basis.P, Basis.P + Basis.Scale * Entry->Dim, Entry->Color);
 
                 BaseAddress += sizeof(*Entry);
             } break;

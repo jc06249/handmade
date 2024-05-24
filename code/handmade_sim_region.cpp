@@ -151,7 +151,7 @@ internal sim_region *BeginSim(memory_arena *SimArena, game_state *GameState, wor
 
     SimRegion->World = World;
     SimRegion->Origin = Origin;
-    SimRegion->UpdatableBounds = AddRadiusTo(Bounds, V3(SimRegion->MaxEntityRadius, SimRegion->MaxEntityRadius, SimRegion->MaxEntityRadius));
+    SimRegion->UpdatableBounds = AddRadiusTo(Bounds, V3(SimRegion->MaxEntityRadius, SimRegion->MaxEntityRadius, 0.0f));
     SimRegion->Bounds = AddRadiusTo(SimRegion->UpdatableBounds, V3(UpdateSafetyMargin, UpdateSafetyMargin, UpdateSafetyMarginZ));
 
     // TODO: Need to be more specific about entity counts
@@ -243,9 +243,9 @@ internal void EndSim(sim_region *Region, game_state *GameState)
                 NewCameraP.AbsTileY -= 9;
             }
 #else
-            real32 CamOffset = NewCameraP.Offset_.z;
+            // real32 CamOffset = NewCameraP.Offset_.z;
             NewCameraP = Stored->P;
-            NewCameraP.Offset_.z = CamOffset;
+            // NewCameraP.Offset_.z = CamOffset;
 #endif
 
             GameState->CameraP = NewCameraP;
