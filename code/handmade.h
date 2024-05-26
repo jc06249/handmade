@@ -239,12 +239,8 @@ struct game_state
     hero_bitmaps HeroBitmaps[4];
 
     loaded_bitmap Tree;
-    loaded_bitmap TreeNormal;
     loaded_bitmap Sword;
     loaded_bitmap Stairwell;
-
-    real32 MetersToPixels;
-    real32 PixelsToMeters;
 
     // TODO: Must be power of two
     pairwise_collision_rule *CollisionRuleHash[256];

@@ -62,6 +62,10 @@ struct bitmap_header
 inline v2 TopDownAlign(loaded_bitmap *Bitmap, v2 Align)
 {
     Align.y = (real32)(Bitmap->Height - 1) - Align.y;
+
+    Align.x = SafeRatio0(Align.x, (real32)Bitmap->Width);
+    Align.y = SafeRatio0(Align.y, (real32)Bitmap->Height);
+
     return(Align);
 
 }
@@ -78,7 +82,8 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_
         Result.Memory = Pixels;
         Result.Width = Header->Width;
         Result.Height = Header->Height;
-        Result.Align = TopDownAlign(&Result, V2i(AlignX, TopDownAlignY));
+        Result.AlignPercentage = TopDownAlign(&Result, V2i(AlignX, TopDownAlignY));
+        Result.WidthOverHeight = SafeRatio0((real32)Result.Width, (real32)Result.Height);
 
         Assert(Header->Height >= 0);
         Assert(Header->Compression == 3);
@@ -423,7 +428,7 @@ internal void FillGroundChunk(transient_state *TranState, game_state *GameState,
 {
     temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
     // TODO: Decide what our pushbuffer size is!
-    render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), 1.0f);
+    render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
 
     Clear(RenderGroup, V4(1.0f, 1.0f, 0.0f, 1.0f));
 
@@ -464,7 +469,7 @@ internal void FillGroundChunk(transient_state *TranState, game_state *GameState,
                 v2 Offset = {Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series)};
                 v2 P = Center + Offset - BitmapCenter;
 
-                PushBitmap(RenderGroup, Stamp, V3(P, 0.0f));
+                PushBitmap(RenderGroup, Stamp, 1.0f, V3(P, 0.0f));
             }
         }
     }
@@ -491,7 +496,7 @@ internal void FillGroundChunk(transient_state *TranState, game_state *GameState,
                 v2 Offset = {Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series)};
                 v2 P = Center + Offset - BitmapCenter;
 
-                PushBitmap(RenderGroup, Stamp, V3(P, 0.0f));
+                PushBitmap(RenderGroup, Stamp, 1.0f, V3(P, 0.0f));
             }
         }
     }
@@ -678,9 +683,9 @@ inline void SetTopDownAlign(hero_bitmaps *Bitmap, v2 Align)
 {
     Align = TopDownAlign(&Bitmap->Head, Align);
 
-    Bitmap->Head.Align = Align;
-    Bitmap->Cape.Align = Align;
-    Bitmap->Torso.Align = Align;
+    Bitmap->Head.AlignPercentage = Align;
+    Bitmap->Cape.AlignPercentage = Align;
+    Bitmap->Torso.AlignPercentage = Align;
 }
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -691,6 +696,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     uint32 GroundBufferWidth = 256;
     uint32 GroundBufferHeight = 256;
 
+    // TODO: Remove this!
+    real32 PixelsToMeters = 1.0f / 42.0f;
+
+    Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     if(!Memory->IsInitialised)
     {
@@ -698,11 +707,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         uint32 TilesPerHeight = 9;
 
         GameState->TypicalFloorHeight = 3.0f;
-        GameState->MetersToPixels = 42.0f;
-        GameState->PixelsToMeters = 1.0f / GameState->MetersToPixels;
 
-        v3 WorldChunkDimInMeters = {GameState->PixelsToMeters * (real32)GroundBufferWidth,
-                                    GameState->PixelsToMeters * (real32)GroundBufferHeight,
+        v3 WorldChunkDimInMeters = {PixelsToMeters * (real32)GroundBufferWidth,
+                                    PixelsToMeters * (real32)GroundBufferHeight,
                                     GameState->TypicalFloorHeight};
 
         InitializeArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state), (uint8 *)Memory->PermanentStorage + sizeof(game_state));
@@ -996,9 +1003,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     world *World = GameState->World;
 
-    real32 MetersToPixels = GameState->MetersToPixels;
-    real32 PixelsToMeters = 1.0f / MetersToPixels;
-
     //
     // NOTE:
     //
@@ -1080,7 +1084,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     temporary_memory RenderMemory = BeginTemporaryMemory(&TranState->TranArena);
     // TODO: Decide what our pushbuffer size is!
-    render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), GameState->MetersToPixels);
+    render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
 
     loaded_bitmap DrawBuffer_ = {};
     loaded_bitmap *DrawBuffer = &DrawBuffer_;
@@ -1257,17 +1261,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     }
 
                     // TODO: Z!!!
-                    PushBitmap(RenderGroup, &GameState->Shadow, V3(0, 0, 0), V4(0, 0, 0, ShadowAlpha));
-                    PushBitmap(RenderGroup, &HeroBitmaps->Torso, V3(0, 0, 0));
-                    PushBitmap(RenderGroup, &HeroBitmaps->Cape, V3(0, 0, 0));
-                    PushBitmap(RenderGroup, &HeroBitmaps->Head, V3(0, 0, 0));
+                    real32 HeroSizeC = 2.5f;
+                    PushBitmap(RenderGroup, &GameState->Shadow, HeroSizeC * 1.0f, V3(0, 0, 0), V4(0, 0, 0, ShadowAlpha));
+                    PushBitmap(RenderGroup, &HeroBitmaps->Torso, HeroSizeC * 1.2f, V3(0, 0, 0));
+                    PushBitmap(RenderGroup, &HeroBitmaps->Cape,  HeroSizeC * 1.2f, V3(0, 0, 0));
+                    PushBitmap(RenderGroup, &HeroBitmaps->Head, HeroSizeC * 1.2f, V3(0, 0, 0));
 
                     DrawHitPoints(Entity, RenderGroup);
                 } break;
 
                 case EntityType_Wall:
                 {
-                    PushBitmap(RenderGroup, &GameState->Tree, V3(0, 0, 0));
+                    PushBitmap(RenderGroup, &GameState->Tree, 2.5f, V3(0, 0, 0));
                 } break;
 
                 case EntityType_Stairwell:
@@ -1288,8 +1293,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         MakeEntityNonSpatial(Entity);
                     }
 
-                    PushBitmap(RenderGroup, &GameState->Shadow, V3(0, 0, 0), V4(1, 1, 1, ShadowAlpha));
-                    PushBitmap(RenderGroup, &GameState->Sword, V3(0, 0, 0));
+                    PushBitmap(RenderGroup, &GameState->Shadow, 0.5f, V3(0, 0, 0), V4(1, 1, 1, ShadowAlpha));
+                    PushBitmap(RenderGroup, &GameState->Sword, 0.5f, V3(0, 0, 0));
                 } break;
 
                 case EntityType_Familiar:
@@ -1330,14 +1335,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         Entity->tBob -= (2.0f * Pi32);
                     }
                     real32 BobSin = Sin(2.0f * Entity->tBob);
-                    PushBitmap(RenderGroup, &GameState->Shadow, V3(0, 0, 0), V4(1, 1, 1, (0.5f * ShadowAlpha) + 0.2f * BobSin));
-                    PushBitmap(RenderGroup, &HeroBitmaps->Head, V3(0, 0, 0.25f * BobSin));
+                    PushBitmap(RenderGroup, &GameState->Shadow, 2.5f, V3(0, 0, 0), V4(1, 1, 1, (0.5f * ShadowAlpha) + 0.2f * BobSin));
+                    PushBitmap(RenderGroup, &HeroBitmaps->Head, 2.5f, V3(0, 0, 0.25f * BobSin));
                 } break;
 
                 case EntityType_Monstar:
                 {
-                    PushBitmap(RenderGroup, &GameState->Shadow, V3(0, 0, 0), V4(1, 1, 1, ShadowAlpha));
-                    PushBitmap(RenderGroup, &HeroBitmaps->Torso, V3(0, 0, 0));
+                    PushBitmap(RenderGroup, &GameState->Shadow, 4.5f, V3(0, 0, 0), V4(1, 1, 1, ShadowAlpha));
+                    PushBitmap(RenderGroup, &HeroBitmaps->Torso, 4.5f, V3(0, 0, 0));
                     DrawHitPoints(Entity, RenderGroup);
                 } break;
 
@@ -1368,7 +1373,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
     }
 
-#if 1
+#if 0
     GameState->Time += Input->dtForFrame;
 
     v3 MapColor[] = 
@@ -1457,6 +1462,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     RenderGroupToOutput(RenderGroup, DrawBuffer);
 
+    // TODO: Make sure we hoist the camera update out to a place where the renderer
+    // can know about the location of the camera at the end of the frame so there isn't
+    // a frame of lag in camera updating compared to the hero.
     EndSim(SimRegion, GameState);
     EndTemporaryMemory(SimMemory);
     EndTemporaryMemory(RenderMemory);

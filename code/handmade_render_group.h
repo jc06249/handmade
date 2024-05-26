@@ -8,9 +8,10 @@
        (meaning that the first row pointer points to the bottom-most row
        when viewed on screen).
 
-    3) Unless otherwise specified, all inputs to the renderer are in world
-       coodinates ("meters"), NOT pixels.  Anything that is in pixel values
-       will be explicitly marked as such.
+    3) It is mandatory that ll inputs to the renderer are in world
+       coodinates ("meters"), NOT pixels.  If for some reason something
+       absolutely has to be specified  in pixels, that will be explicitly
+       marked in the API, but this should occur exceedingly sparingly.
 
     4) Z is a special coordinate because it is broken up into descrete slices,
        and the renderer actually understands these slices. Z slices are what
@@ -25,7 +26,8 @@
 */
 struct loaded_bitmap
 {
-    v2 Align;
+    v2 AlignPercentage;
+    real32 WidthOverHeight;
 
     int32 Width;
     int32 Height;
@@ -94,6 +96,7 @@ struct render_entry_bitmap
 {
     render_entity_basis EntityBasis;
     loaded_bitmap *Bitmap;
+    v2 Size;
     v4 Color;
 };
 
@@ -109,7 +112,6 @@ struct render_group
     real32 GlobalAlpha;
 
     render_basis *DefaultBasis;
-    real32 MetersToPixels;
 
     uint32 MaxPushBufferSize;
     uint32 PushBufferSize;

@@ -993,6 +993,8 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
        1024 + 128 = 1152
     */
     Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
+    // Win32ResizeDIBSection(&GlobalBackbuffer, 1920, 1080);
+    // Win32ResizeDIBSection(&GlobalBackbuffer, 2560, 1440);
 
     WindowClass.style = CS_HREDRAW|CS_VREDRAW;
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
