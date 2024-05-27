@@ -40,11 +40,11 @@ union v3
     struct
     {
         v2 uv;
-        real32 Ignored0_;
+        real32 Ignored2_;
     };
     struct
     {
-        real32 Ignored0_;
+        real32 Ignored3_;
         v2 vw;
     };
     real32 E[3];
