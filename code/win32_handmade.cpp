@@ -982,13 +982,48 @@ internal void Win32DebugSyncDisplay(win32_offscreen_buffer *Backbuffer, int Mark
 
 #endif
 
+struct work_queue_entry
+{
+    char *StringToPrint;
+};
+
+global_variable uint32 NextEntryToDo;
+global_variable uint32 EntryCount;
+work_queue_entry Entries[256];
+
+internal void PushString(char *String)
+{
+    Assert(EntryCount < ArrayCount(Entries));
+
+    // TODO: These writes are not in order!
+    work_queue_entry *Entry = Entries + EntryCount++;
+    Entry->StringToPrint = String;
+}
+
+struct win32_thread_info
+{
+    int LogicalThreadIndex;
+};
+
 DWORD WINAPI ThreadProc(LPVOID lpParameter)
 {
-    char *StringToPrint = (char *)lpParameter;
+    win32_thread_info *ThreadInfo = (win32_thread_info *)lpParameter;
+
     for(;;)
     {
-        OutputDebugStringA(StringToPrint);
-        Sleep(1000);
+        if(NextEntryToDo < EntryCount)
+        {
+            // TODO: This line is not interlocked, so two threads could see the same value.
+            // TOOD: Compiler doesn't know that multiple threads could write this value!
+            int EntryIndex = NextEntryToDo++;
+
+            // TODO: These reads are not in order!
+            work_queue_entry *Entry = Entries + EntryIndex;
+
+            char Buffer[256];
+            wsprintfA(Buffer, "Thread %u: %s\n", ThreadInfo->LogicalThreadIndex, Entry->StringToPrint);
+            OutputDebugStringA(Buffer);
+        }
     }
 
     // return(0);
@@ -998,10 +1033,28 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
 {
     win32_state Win32State = {};
 
-    char *Param = "Thread started!";
-    DWORD ThreadID;
-    HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Param, 0, &ThreadID);
-    CloseHandle(ThreadHandle);
+    win32_thread_info ThreadInfo[16];
+    for (int ThreadIndex = 0; ThreadIndex < ArrayCount(ThreadInfo); ++ThreadIndex)
+    {
+        win32_thread_info *Info = ThreadInfo + ThreadIndex;
+        Info->LogicalThreadIndex = ThreadIndex;
+
+        DWORD ThreadID;
+        HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Info, 0, &ThreadID);
+        CloseHandle(ThreadHandle);
+
+    }
+
+    PushString("String 0\n");
+    PushString("String 1\n");
+    PushString("String 2\n");
+    PushString("String 3\n");
+    PushString("String 4\n");
+    PushString("String 5\n");
+    PushString("String 6\n");
+    PushString("String 7\n");
+    PushString("String 8\n");
+    PushString("String 9\n");
 
     LARGE_INTEGER PerfCountFrequencyResult;
     QueryPerformanceFrequency(&PerfCountFrequencyResult);
