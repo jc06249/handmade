@@ -1100,7 +1100,7 @@ struct tile_render_work
     rectangle2i ClipRect;
 };
 
-internal void DoTiledRenderWork(void *Data)
+internal PLATFORM_WORK_QUEUE_CALLBACK(DoTiledRenderWork)
 {
     tile_render_work *Work = (tile_render_work *)Data;
 
@@ -1108,7 +1108,7 @@ internal void DoTiledRenderWork(void *Data)
     RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, true);
 }
 
-internal void TiledRenderGroupToOutput(/*platform_work_queue *RenderQueue,*/ render_group *RenderGroup, loaded_bitmap *OutputTarget)
+internal void TiledRenderGroupToOutput(platform_work_queue *RenderQueue, render_group *RenderGroup, loaded_bitmap *OutputTarget)
 {
     int const TileCountX = 4;
     int const TileCountY = 4;
@@ -1135,17 +1135,17 @@ internal void TiledRenderGroupToOutput(/*platform_work_queue *RenderQueue,*/ ren
             Work->RenderGroup = RenderGroup;
             Work->OutputTarget = OutputTarget;
             Work->ClipRect = ClipRect;
-
-            // RenderQueue->AddEntry(RenderQueue, DoTiledRenderWork, Work);
+#if 1
+            // NOTE: This is the multi-threaded path
+            PlatformAddEntry(RenderQueue, DoTiledRenderWork, Work);
+#else
+            // NOTE: This is the single-threaded path
+            DoTiledRenderWork(RenderQueue, Work);
+#endif
         }
     }
 
-    // RenderQueue->CompleteAllWork(RenderQueue);
-    for(int WorkIndex = 0; WorkIndex < WorkCount; ++WorkIndex)
-    {
-        tile_render_work *Work = WorkArray + WorkIndex;
-        DoTiledRenderWork(Work);
-    }
+    PlatformCompleteAllWork(RenderQueue);
 }
 
 internal render_group *AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, uint32 ResolutionPixelsX, uint32 ResolutionPixelsY)
