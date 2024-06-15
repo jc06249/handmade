@@ -403,9 +403,9 @@ internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int Width, i
     // NOTE: Thank you to Chris Hecker of Spy Party fame
     // for clarifying the deal with StretchDIBits and BitBlt!
     // No more DC for us.
-    int BitmapMemorySize = (Buffer->Width*Buffer->Height)*BytesPerPixel;
+    Buffer->Pitch = Align16(Width*BytesPerPixel);
+    int BitmapMemorySize = (Buffer->Pitch * Buffer->Height);
     Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    Buffer->Pitch = Width*BytesPerPixel;
 
     // TODO: Probably clear this to black
 }
@@ -1010,7 +1010,6 @@ void Win32AddEntry(platform_work_queue *Queue, platform_work_queue_callback *Cal
     Entry->Data = Data;
     ++Queue->CompletionGoal;
     _WriteBarrier();
-    _mm_sfence();
     Queue->NextEntryToWrite = NewNextEntryToWrite;
     ReleaseSemaphore(Queue->SemaphoreHandle, 1, 0);
 }
@@ -1159,6 +1158,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
        1024 + 128 = 1152
     */
     // Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
+    // Win32ResizeDIBSection(&GlobalBackbuffer, 1279, 719);
     Win32ResizeDIBSection(&GlobalBackbuffer, 1920, 1080);
     // Win32ResizeDIBSection(&GlobalBackbuffer, 2560, 1440);
 

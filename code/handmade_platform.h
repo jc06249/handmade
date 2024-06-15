@@ -81,6 +81,7 @@ typedef double real64;
 #define Pi32 3.14159265359f
 
 #if HANDMADE_SLOW
+// TODO: Complete assertion macro - don't worrt everyone!
 #define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #else
 #define Assert(Expression)
@@ -95,8 +96,12 @@ typedef double real64;
 #define Terabytes(Value) (Gigabytes(Value) * 1024LL)
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+// TODO: swap, min, max ... macros???
+
+#define Align16(Value) ((Value + 15) & ~15)
 
 inline uint32 SafeTruncateUInt64(uint64 Value){
+    // TODO: Defines for maximum values
     Assert(Value <= 0xFFFFFFFF);
     uint32 Result = (uint32)Value;
     return(Result);
@@ -106,8 +111,15 @@ typedef struct thread_context{
     int Placeholder;
 } thread_context;
 
+/*
+    NOTE: Services that the platform layer provides to the game
+*/
 #if HANDMADE_INTERNAL
+/*  IMPORTANT:
 
+    These are NOT for doing anything in the shipping game - they are
+    blocking and the write doesn't protect against lost data!
+*/
 typedef struct debug_read_file_result{
     uint32 ContentsSize;
     void *Contents;
