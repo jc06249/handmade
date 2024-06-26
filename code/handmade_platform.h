@@ -240,7 +240,8 @@ typedef struct game_memory{
     uint64 TransientStorageSize;
     void *TransientStorage;
 
-    struct platform_work_queue *HighPriorityQueue;
+    platform_work_queue *HighPriorityQueue;
+    platform_work_queue *LowPriorityQueue;
 
     platform_add_entry *PlatformAddEntry;
     platform_complete_all_work *PlatformCompleteAllWork;

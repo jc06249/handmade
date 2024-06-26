@@ -431,6 +431,16 @@ sim_entity_collision_volume_group *MakeNullCollision(game_state *GameState)
     return(Group);
 }
 
+/*
+internal PLATFORM_WORK_QUEUE_CALLBACK(DoTiledRenderWork)
+{
+    tile_render_work *Work = (tile_render_work *)Data;
+
+    RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, true);
+    RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, false);
+}
+*/
+
 internal void FillGroundChunk(transient_state *TranState, game_state *GameState, ground_buffer *GroundBuffer, world_position *ChunkP)
 {
     temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
@@ -447,7 +457,7 @@ internal void FillGroundChunk(transient_state *TranState, game_state *GameState,
 
     // TODO: Decide what our pushbuffer size is!
     render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
-    Orthographic(RenderGroup, Buffer->Width, Buffer->Width, Buffer->Width / Width);
+    Orthographic(RenderGroup, Buffer->Width, Buffer->Width, (Buffer->Width - 2) / Width);
     Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
 
     for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY)
@@ -461,13 +471,15 @@ internal void FillGroundChunk(transient_state *TranState, game_state *GameState,
             // TODO: Make random number generation more systemic
             // TODO: Look into wang hashing or some other spatial seed generation "thing"!
             random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
-
+#if 0
             v4 Color = V4(1, 0, 0, 1);
             if((ChunkX % 2) == (ChunkY % 2))
             {
                 Color = V4(0, 0, 1, 1);
             }
-
+#else
+            v4 Color = V4(1, 1, 1, 1);
+#endif
             v2 Center = V2(ChunkOffsetX * Width, ChunkOffsetY * Height);
 
             for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
@@ -512,7 +524,7 @@ internal void FillGroundChunk(transient_state *TranState, game_state *GameState,
         }
     }
 
-    TiledRenderGroupToOutput(TranState->RenderQueue, RenderGroup, Buffer);
+    TiledRenderGroupToOutput(TranState->LowPriorityQueue, RenderGroup, Buffer);
     EndTemporaryMemory(GroundMemory);
 }
 
@@ -960,7 +972,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 
         // TODO: Pick a real number here!
-        TranState->RenderQueue = Memory->HighPriorityQueue;
+        TranState->HighPriorityQueue = Memory->HighPriorityQueue;
+        TranState->LowPriorityQueue = Memory->LowPriorityQueue;
         TranState->GroundBufferCount = 256;
         TranState->GroundBuffers = PushArray(&TranState->TranArena, TranState->GroundBufferCount, ground_buffer);
         for(uint32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex)
@@ -1104,7 +1117,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
     real32 WidthOfMonitor = 0.635f; // NOTE: Horizontal measurement of monitor in meters
     real32 MetersToPixels = (real32)DrawBuffer->Width * WidthOfMonitor;
-    Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, MetersToPixels, 0.6f, 9.0f);
+    real32 FocalLength = 0.6f;
+    real32 DistanceAboveGround = 9.0f;
+    Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, MetersToPixels, FocalLength, DistanceAboveGround);
     Clear(RenderGroup, V4(0.25f, 0.25f, 0.25f, 0.0f));
 
     v2 ScreenCenter = {0.5f * (real32)DrawBuffer->Width,
@@ -1127,7 +1142,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             if((Delta.z >= -1.0f) && (Delta.z < 1.0f))
             {
                 real32 GroundSideInMeters = World->ChunkDimInMeters.x;
-                PushBitmap(RenderGroup, Bitmap, GroundSideInMeters, Delta);
+                PushBitmap(RenderGroup, Bitmap, 1.0f * GroundSideInMeters, Delta);
 #if 0
                 PushRectOutline(RenderGroup, Delta, V2(GroundSideInMeters, GroundSideInMeters), V4(1.0f, 1.0f, 0.0f, 1.0f));
 #endif
@@ -1492,7 +1507,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 #endif
 
-    TiledRenderGroupToOutput(TranState->RenderQueue, RenderGroup, DrawBuffer);
+    TiledRenderGroupToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);
 
     // TODO: Make sure we hoist the camera update out to a place where the renderer
     // can know about the location of the camera at the end of the frame so there isn't
