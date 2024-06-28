@@ -1085,6 +1085,24 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(DoTiledRenderWork)
     RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, false);
 }
 
+internal void RenderGroupToOutput(render_group *RenderGroup, loaded_bitmap *OutputTarget)
+{
+    Assert(((uintptr)OutputTarget->Memory & 15) == 0);
+
+    rectangle2i ClipRect;
+    ClipRect.MinX = 0;
+    ClipRect.MaxX = OutputTarget->Width;
+    ClipRect.MinY = 0;
+    ClipRect.MaxY = OutputTarget->Height;
+
+    tile_render_work Work;
+    Work.RenderGroup = RenderGroup;
+    Work.OutputTarget = OutputTarget;
+    Work.ClipRect = ClipRect;
+
+    DoTiledRenderWork(0, &Work);
+}
+
 internal void TiledRenderGroupToOutput(platform_work_queue *RenderQueue, render_group *RenderGroup, loaded_bitmap *OutputTarget)
 {
     /*
@@ -1148,7 +1166,12 @@ internal void TiledRenderGroupToOutput(platform_work_queue *RenderQueue, render_
 internal render_group *AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize)
 {
     render_group *Result = PushStruct(Arena, render_group);
-    Result->PushBufferBase = (uint8 * )PushSize(Arena, MaxPushBufferSize);
+    
+    if(MaxPushBufferSize == 0)
+    {
+        MaxPushBufferSize = (uint32)GetArenaSizeRemaining(Arena);
+    }
+    Result->PushBufferBase = (uint8 *)PushSize(Arena, MaxPushBufferSize);
 
     Result->MaxPushBufferSize = MaxPushBufferSize;
     Result->PushBufferSize = 0;
@@ -1218,7 +1241,7 @@ inline entity_basis_p_result GetRenderEntityBasisP(render_transform *Transform, 
         real32 OffsetZ = 0.0f;
 
         real32 DistanceAboveTarget = Transform->DistanceAboveTarget;
-#if 1
+#if 0
         // TODO: How do we want to control the debug camera?
         if(1)
         {

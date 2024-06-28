@@ -230,7 +230,7 @@ internal add_low_entity_result AddWall(game_state *GameState, uint32 AbsTileX, u
     return(Entity);
 }
 
-internal add_low_entity_result AddStair(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ, bool32 DoorDown)
+internal add_low_entity_result AddStair(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
 {
     world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
     add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Stairwell, P, GameState->StairCollision);
@@ -431,101 +431,140 @@ sim_entity_collision_volume_group *MakeNullCollision(game_state *GameState)
     return(Group);
 }
 
-/*
-internal PLATFORM_WORK_QUEUE_CALLBACK(DoTiledRenderWork)
+internal task_with_memory *BeginTaskWithMemory(transient_state *TranState)
 {
-    tile_render_work *Work = (tile_render_work *)Data;
+    task_with_memory *FoundTask = 0;
 
-    RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, true);
-    RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, false);
+    for(uint32 TaskIndex = 0; TaskIndex < ArrayCount(TranState->Tasks); ++TaskIndex)
+    {
+        task_with_memory *Task = TranState->Tasks + TaskIndex;
+        if(!Task->BeingUsed)
+        {
+            FoundTask = Task;
+            FoundTask->BeingUsed = true;
+            Task->MemoryFlush = BeginTemporaryMemory(Task->Arena);
+            break;
+        }
+    }
+
+    return(FoundTask);
 }
-*/
+
+internal void EndTaskWithMemory(task_with_memory *Task)
+{
+    EndTemporaryMemory(Task->MemoryFlush);
+
+    CompletePreviousWritesBeforeFutureWrites;
+    Task->BeingUsed = false;
+}
+struct fill_ground_chunk_work
+{
+    render_group *RenderGroup;
+    loaded_bitmap *Buffer;
+    task_with_memory *Task;
+};
+internal PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
+{
+    fill_ground_chunk_work *Work = (fill_ground_chunk_work *)Data;
+
+    RenderGroupToOutput(Work->RenderGroup, Work->Buffer);
+
+    EndTaskWithMemory(Work->Task);
+}
 
 internal void FillGroundChunk(transient_state *TranState, game_state *GameState, ground_buffer *GroundBuffer, world_position *ChunkP)
 {
-    temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
-    GroundBuffer->P = *ChunkP;
-
-    loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
-    Buffer->AlignPercentage = V2(0.5f, 0.5f);
-    Buffer->WidthOverHeight = 1.0f;
-
-    real32 Width = GameState->World->ChunkDimInMeters.x;
-    real32 Height = GameState->World->ChunkDimInMeters.y;
-    Assert(Width == Height);
-    v2 HalfDim = 0.5f * V2(Width, Height);
-
-    // TODO: Decide what our pushbuffer size is!
-    render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
-    Orthographic(RenderGroup, Buffer->Width, Buffer->Width, (Buffer->Width - 2) / Width);
-    Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
-
-    for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY)
+    task_with_memory *Task = BeginTaskWithMemory(TranState);
+    if(Task)
     {
-        for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX)
-        {
-            int32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
-            int32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
-            int32 ChunkZ = ChunkP->ChunkZ;
+        fill_ground_chunk_work *Work = PushStruct(Task->Arena, fill_ground_chunk_work);
 
-            // TODO: Make random number generation more systemic
-            // TODO: Look into wang hashing or some other spatial seed generation "thing"!
-            random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
+        GroundBuffer->P = *ChunkP;
+
+        loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
+        Buffer->AlignPercentage = V2(0.5f, 0.5f);
+        Buffer->WidthOverHeight = 1.0f;
+
+        real32 Width = GameState->World->ChunkDimInMeters.x;
+        real32 Height = GameState->World->ChunkDimInMeters.y;
+        Assert(Width == Height);
+        v2 HalfDim = 0.5f * V2(Width, Height);
+
+        // TODO: Decide what our pushbuffer size is!
+        // TODO: Safe cast from memory_uint to uint32?
+        render_group *RenderGroup = AllocateRenderGroup(Task->Arena, 0);
+        Orthographic(RenderGroup, Buffer->Width, Buffer->Width, (Buffer->Width - 2) / Width);
+        Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
+
+        for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY)
+        {
+            for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX)
+            {
+                int32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
+                int32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
+                int32 ChunkZ = ChunkP->ChunkZ;
+
+                // TODO: Make random number generation more systemic
+                // TODO: Look into wang hashing or some other spatial seed generation "thing"!
+                random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
 #if 0
-            v4 Color = V4(1, 0, 0, 1);
-            if((ChunkX % 2) == (ChunkY % 2))
-            {
-                Color = V4(0, 0, 1, 1);
-            }
+                v4 Color = V4(1, 0, 0, 1);
+                if((ChunkX % 2) == (ChunkY % 2))
+                {
+                    Color = V4(0, 0, 1, 1);
+                }
 #else
-            v4 Color = V4(1, 1, 1, 1);
+                v4 Color = V4(1, 1, 1, 1);
 #endif
-            v2 Center = V2(ChunkOffsetX * Width, ChunkOffsetY * Height);
+                v2 Center = V2(ChunkOffsetX * Width, ChunkOffsetY * Height);
 
-            for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
-            {
-                loaded_bitmap *Stamp;
-                if(RandomChoice(&Series, 2))
+                for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
                 {
-                    Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
-                }
-                else
-                {
-                    Stamp = GameState->Stone + RandomChoice(&Series, ArrayCount(GameState->Stone));
-                }
+                    loaded_bitmap *Stamp;
+                    if(RandomChoice(&Series, 2))
+                    {
+                        Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
+                    }
+                    else
+                    {
+                        Stamp = GameState->Stone + RandomChoice(&Series, ArrayCount(GameState->Stone));
+                    }
 
-                v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),RandomBilateral(&Series)));
-                PushBitmap(RenderGroup, Stamp, 2.0f, V3(P, 0.0f), Color);
+                    v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),RandomBilateral(&Series)));
+                    PushBitmap(RenderGroup, Stamp, 2.0f, V3(P, 0.0f), Color);
+                }
             }
         }
-    }
 
-    for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY)
-    {
-        for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX)
+        for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY)
         {
-            int32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
-            int32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
-            int32 ChunkZ = ChunkP->ChunkZ;
-
-            // TODO: Make random number generation more systemic
-            // TODO: Look into wang hashing or some other spatial seed generation "thing"!
-            random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
-
-            v2 Center = V2(ChunkOffsetX * Width,  ChunkOffsetY * Height);
-
-            for(uint32 GrassIndex = 0; GrassIndex < 50; ++GrassIndex)
+            for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX)
             {
-                loaded_bitmap *Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+                int32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
+                int32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
+                int32 ChunkZ = ChunkP->ChunkZ;
 
-                v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),RandomBilateral(&Series)));
-                PushBitmap(RenderGroup, Stamp, 0.1f, V3(P, 0.0f));
+                // TODO: Make random number generation more systemic
+                // TODO: Look into wang hashing or some other spatial seed generation "thing"!
+                random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
+
+                v2 Center = V2(ChunkOffsetX * Width,  ChunkOffsetY * Height);
+
+                for(uint32 GrassIndex = 0; GrassIndex < 50; ++GrassIndex)
+                {
+                    loaded_bitmap *Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+
+                    v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),RandomBilateral(&Series)));
+                    PushBitmap(RenderGroup, Stamp, 0.1f, V3(P, 0.0f));
+                }
             }
         }
-    }
+        Work->RenderGroup = RenderGroup;
+        Work->Buffer = Buffer;
+        Work->Task = Task;
 
-    TiledRenderGroupToOutput(TranState->LowPriorityQueue, RenderGroup, Buffer);
-    EndTemporaryMemory(GroundMemory);
+        PlatformAddEntry(TranState->LowPriorityQueue, FillGroundChunkWork, Work);
+    }
 }
 
 internal void ClearBitmap(loaded_bitmap *Bitmap)
@@ -545,7 +584,7 @@ internal loaded_bitmap MakeEmptyBitmap(memory_arena *Arena, int32 Width, int32 H
     Result.Height = Height;
     Result.Pitch = Result.Width * BITMAP_BYTES_PER_PIXEL;
     int32 TotalBitmapSize = Width * Height * BITMAP_BYTES_PER_PIXEL;
-    Result.Memory = PushSize(Arena, TotalBitmapSize);
+    Result.Memory = PushSize(Arena, TotalBitmapSize, 16);
     if(ClearToZero)
     {
         ClearBitmap(&Result);
@@ -892,7 +931,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         if(((AbsTileZ % 2) &&(TileX == 10) && (TileY ==5)) ||
                           (!(AbsTileZ % 2) && (TileX == 4) && (TileY == 5)))
                         {
-                            AddStair(GameState, AbsTileX, AbsTileY, AbsTileZ, DoorDown ? AbsTileZ - 1 : AbsTileZ);
+                            AddStair(GameState, AbsTileX, AbsTileY, DoorDown ? AbsTileZ - 1 : AbsTileZ);
                         }
                     }
                 }
@@ -970,6 +1009,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         InitializeArena(&TranState->TranArena, Memory->TransientStorageSize - sizeof(transient_state), (uint8 *)Memory->TransientStorage + sizeof(transient_state));
 
+        for(uint32_t TaskIndex = 0; TaskIndex < ArrayCount(TranState->Tasks); ++TaskIndex)
+        {
+            task_with_memory *Task = TranState->Tasks + TaskIndex;
+
+            Task->BeingUsed = false;
+            SubArena(Task->Arena, &TranState->TranArena, Megabytes(1));
+        }
 
         // TODO: Pick a real number here!
         TranState->HighPriorityQueue = Memory->HighPriorityQueue;
