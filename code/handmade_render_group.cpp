@@ -1319,6 +1319,7 @@ inline void PushBitmap(render_group *Group, game_asset_id ID, real32 Height, v3 
     else
     {
         LoadAsset(Group->Assets, ID);
+        ++Group->MissingResourceCount;
     }
 }
 
@@ -1401,6 +1402,13 @@ inline rectangle2 GetCameraRectangleAtDistance(render_group *Group, real32 Dista
 inline rectangle2 GetCameraFromRectangleAtTarget(render_group *Group)
 {
     rectangle2 Result = GetCameraRectangleAtDistance(Group, Group->Transform.DistanceAboveTarget);
+
+    return(Result);
+}
+
+inline bool32 AllResourcesPresent(render_group *Group)
+{
+    bool32 Result = (Group->MissingResourceCount == 0);
 
     return(Result);
 }
