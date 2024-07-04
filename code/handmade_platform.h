@@ -107,10 +107,6 @@ inline uint32 SafeTruncateUInt64(uint64 Value){
     return(Result);
 }
 
-typedef struct thread_context{
-    int Placeholder;
-} thread_context;
-
 /*
     NOTE: Services that the platform layer provides to the game
 */
@@ -125,13 +121,13 @@ typedef struct debug_read_file_result{
     void *Contents;
 } debug_read_file_result;
 
-#define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(thread_context *Thread, void *Memory)
+#define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(void *Memory)
 typedef DEBUG_PLATFORM_FREE_FILE_MEMORY(debug_platform_free_file_memory);
 
-#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *Filename)
+#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(char *Filename)
 typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
 
-#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(thread_context *Thread, char *Filename, uint32 MemorySize, void *Memory)
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char *Filename, uint32 MemorySize, void *Memory)
 typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 
 enum
@@ -231,9 +227,8 @@ typedef PLATFORM_WORK_QUEUE_CALLBACK(platform_work_queue_callback);
 
 typedef void platform_add_entry(platform_work_queue *Queue, platform_work_queue_callback *Callback, void *Data);
 typedef void platform_complete_all_work(platform_work_queue *Queue);
-typedef struct game_memory{
-    bool32 IsInitialised;
-
+typedef struct game_memory
+{
     uint64 PermanentStorageSize;
     void *PermanentStorage;
 
@@ -255,10 +250,10 @@ typedef struct game_memory{
 #endif
 } game_memory;
 
-#define GAME_UPDATE_AND_RENDER(name) void name(thread_context *Thread, game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
+#define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
 
-#define GAME_GET_SOUND_SAMPLES(name) void name(thread_context *Thread, game_memory *Memory, game_sound_output_buffer *SoundBuffer)
+#define GAME_GET_SOUND_SAMPLES(name) void name(game_memory *Memory, game_sound_output_buffer *SoundBuffer)
 typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
 
 inline game_controller_input *GetController(game_input *Input, int unsigned ControllerIndex){
