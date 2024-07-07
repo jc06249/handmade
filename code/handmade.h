@@ -136,6 +136,7 @@ inline memory_index GetArenaSizeRemaining(memory_arena *Arena, memory_index Alig
     return(Result);
 }
 
+// TODO: Optional "clear" parameters!!!!
 #define PushStruct(Arena, type, ...) (type *)PushSize_(Arena, sizeof(type), ## __VA_ARGS__)
 #define PushArray(Arena, Count, type, ...) (type *)PushSize_(Arena, (Count) * sizeof(type), ## __VA_ARGS__)
 #define PushSize(Arena, Size, ...) PushSize_(Arena, Size, ## __VA_ARGS__)
