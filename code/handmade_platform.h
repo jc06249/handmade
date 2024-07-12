@@ -79,6 +79,7 @@ typedef double real64;
 #define global_variable static
 
 #define Pi32 3.14159265359f
+#define Tau32 6.28318530717958647692f
 
 #if HANDMADE_SLOW
 // TODO: Complete assertion macro - don't worrt everyone!
