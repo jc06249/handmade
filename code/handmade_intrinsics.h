@@ -19,7 +19,12 @@ inline uint32 AtomicCompareExchangeUInt32(uint32 volatile *Value, uint32 Expecte
 inline int32 SignOf(int32 Value)
 {
     int32 Result = (Value >= 0) ? 1 : -1;
+    return(Result);
+}
 
+inline real32 SignOf(real32 Value)
+{
+    real32 Result = (Value >= 0) ? 1.0f : -1.0f;
     return(Result);
 }
 
