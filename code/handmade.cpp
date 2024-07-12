@@ -998,7 +998,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     v2 ScreenCenter = {0.5f * (real32)DrawBuffer->Width,
                        0.5f * (real32)DrawBuffer->Height};
 
-    rectangle2 ScreenBounds = GetCameraFromRectangleAtTarget(RenderGroup);
+    rectangle2 ScreenBounds = GetCameraRectangleAtTarget(RenderGroup);
     rectangle3 CameraBoundsInMeters = RectMinMax(V3(ScreenBounds.Min, 0.0f), V3(ScreenBounds.Max, 0.0f));
     CameraBoundsInMeters.Min.z = -3.0f * GameState->TypicalFloorHeight;
     CameraBoundsInMeters.Max.z = 1.0f * GameState->TypicalFloorHeight;

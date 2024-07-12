@@ -6,7 +6,7 @@
 
 inline world_position NullPosition(void)
 {
-    world_position Result;
+    world_position Result = {};
 
     Result.ChunkX = TILE_CHUNK_UNINITIALIZED;
 

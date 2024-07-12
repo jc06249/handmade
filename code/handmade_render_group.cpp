@@ -1183,6 +1183,8 @@ internal render_group *AllocateRenderGroup(game_assets *Assets, memory_arena *Ar
     Result->Transform.OffsetP = V3(0.0f, 0.0f, 0.0f);
     Result->Transform.Scale = 1.0f;
 
+    Result->MissingResourceCount = 0;
+
     return(Result);
 }
 
@@ -1399,7 +1401,7 @@ inline rectangle2 GetCameraRectangleAtDistance(render_group *Group, real32 Dista
     return(Result);
 }
 
-inline rectangle2 GetCameraFromRectangleAtTarget(render_group *Group)
+inline rectangle2 GetCameraRectangleAtTarget(render_group *Group)
 {
     rectangle2 Result = GetCameraRectangleAtDistance(Group, Group->Transform.DistanceAboveTarget);
 
