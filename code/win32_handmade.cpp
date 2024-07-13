@@ -1205,7 +1205,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             {
                 MonitorRefreshHz = Win32RefreshRate;
             }
-            real32 GameUpdateHz = (real32)MonitorRefreshHz; //(MonitorRefreshHz / 2.0f);
+            real32 GameUpdateHz = (real32)(MonitorRefreshHz / 2.0f);
             real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz;
 
             // TODO: Make this like sixty seconds?
