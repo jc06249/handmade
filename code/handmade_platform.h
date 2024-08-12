@@ -83,6 +83,9 @@ typedef uint16 u16;
 typedef uint32 u32;
 typedef uint64 u64;
 
+typedef real32 r32;
+typedef real64 r64;
+
 #define Real32Maximum FLT_MAX;
 
 #define internal static

@@ -3,6 +3,8 @@
 /*
     TODO:
 
+    - Flush all thread queues before reloading DLL!
+
     - Audio
         - Sound effect triggers
         - Ambient sounds
@@ -157,6 +159,25 @@ inline void * PushSize_(memory_arena *Arena, memory_index SizeInit, memory_index
     Assert(Size >= SizeInit);
 
     return(Result);
+}
+
+//NOTE: This is not generally not for productino use, this is probably
+// only really for something we need during testing, but who knows
+inline char *PushString(memory_arena *Arena, char *Source)
+{
+    u32 Size = 1;
+    for(char * At = Source; *At; ++At)
+    {
+        ++Size;
+    }
+
+    char *Dest = (char *)PushSize_(Arena, Size);
+    for(u32 CharIndex = 0; CharIndex < Size; ++CharIndex)
+    {
+        Dest[CharIndex] = Source[CharIndex];
+    }
+
+    return(Dest);
 }
 
 inline temporary_memory BeginTemporaryMemory(memory_arena *Arena)
