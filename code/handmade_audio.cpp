@@ -109,7 +109,7 @@ internal void OutputPlayingSounds(audio_state *AudioState, game_sound_output_buf
 
                 v2 Volume = PlayingSound->CurrentVolume;
                 v2 dVolume = SecondsPerSample * PlayingSound->dCurrentVolume;
-                real32 dSample = 2.0f * PlayingSound->dSample;
+                real32 dSample = PlayingSound->dSample;
 
                 Assert(PlayingSound->SamplesPlayed >= 0);
 
@@ -171,7 +171,7 @@ internal void OutputPlayingSounds(audio_state *AudioState, game_sound_output_buf
                 }
 
                 Assert(TotalSamplesToMix >= SamplesToMix);
-                PlayingSound->SamplesPlayed += SamplePosition;
+                PlayingSound->SamplesPlayed = SamplePosition;
                 TotalSamplesToMix -= SamplesToMix;
 
                 if((uint32)PlayingSound->SamplesPlayed == LoadedSound->SampleCount)
