@@ -88,7 +88,9 @@ typedef real64 r64;
 
 #define Real32Maximum FLT_MAX;
 
+#if !defined(internal)
 #define internal static
+#endif
 #define local_persist static
 #define global_variable static
 
@@ -113,6 +115,8 @@ typedef real64 r64;
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 // TODO: swap, min, max ... macros???
 
+#define AlignPow2(Value, Alignment) ((Value + ((Alignment) - 1)) & ~((Alignment) - 1))
+#define Align4(Value) ((Value + 3) & ~3)
 #define Align16(Value) ((Value + 15) & ~15)
 
 inline uint32 SafeTruncateUInt64(uint64 Value){
@@ -186,6 +190,8 @@ typedef struct game_offscreen_buffer{
 typedef struct game_sound_output_buffer{
     int SamplesPerSecond;
     int SampleCount;
+
+    // IMPORTANT: Samples must be padded to a multiple of 4 samples!
     int16 *Samples;
 } game_sound_output_buffer;
 
