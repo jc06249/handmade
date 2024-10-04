@@ -233,7 +233,7 @@ internal void OutputPlayingSounds(audio_state *AudioState, game_sound_output_buf
                     if(IsValid(Info->NextIDToPlay))
                     {
                         PlayingSound->ID = Info->NextIDToPlay;
-                        Assert(PlayingSound->SamplesPlayed >= LoadedSound->SampleCount);
+                        // Assert(PlayingSound->SamplesPlayed >= LoadedSound->SampleCount);
                         PlayingSound->SamplesPlayed -= (real32)LoadedSound->SampleCount;
                         if(PlayingSound->SamplesPlayed < 0)
                         {

@@ -325,13 +325,13 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadBitmapWork)
 {
     load_bitmap_work *Work = (load_bitmap_work *)Data;
 
-    asset_bitmap_info *Info = Work->Assets->BitmapInfos + Work->ID.Value;
+    asset_bitmap_info *Info = &Work->Assets->Assets[Work->ID.Value].Bitmap;
     *Work->Bitmap = DEBUGLoadBMP(Info->FileName, Info->AlignPercentage);
 
     CompletePreviousWritesBeforeFutureWrites;
 
-    Work->Assets->Bitmaps[Work->ID.Value].Bitmap = Work->Bitmap;
-    Work->Assets->Bitmaps[Work->ID.Value].State = Work->FinalState;
+    Work->Assets->Slots[Work->ID.Value].Bitmap = Work->Bitmap;
+    Work->Assets->Slots[Work->ID.Value].State = Work->FinalState;
 
     EndTaskWithMemory(Work->Task);
 }
@@ -339,7 +339,7 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadBitmapWork)
 internal void LoadBitmap(game_assets *Assets, bitmap_id ID)
 {
     if(ID.Value &&
-       (AtomicCompareExchangeUInt32((uint32 *)&Assets->Bitmaps[ID.Value].State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded))
+       (AtomicCompareExchangeUInt32((uint32 *)&Assets->Slots[ID.Value].State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded))
     {
         task_with_memory *Task = BeginTaskWithMemory(Assets->TranState);
         if(Task)
@@ -356,7 +356,7 @@ internal void LoadBitmap(game_assets *Assets, bitmap_id ID)
         }
         else
         {
-            Assets->Bitmaps[ID.Value].State = AssetState_Unloaded;
+            Assets->Slots[ID.Value].State = AssetState_Unloaded;
         }
     }
 }
@@ -375,13 +375,13 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadSoundWork)
 {
     load_sound_work *Work = (load_sound_work *)Data;
 
-    asset_sound_info *Info = Work->Assets->SoundInfos + Work->ID.Value;
+    asset_sound_info *Info = &Work->Assets->Assets[Work->ID.Value].Sound;
     *Work->Sound = DEBUGLoadWAV(Info->FileName, Info->FirstSampleIndex, Info->SampleCount);
 
     CompletePreviousWritesBeforeFutureWrites;
 
-    Work->Assets->Sounds[Work->ID.Value].Sound = Work->Sound;
-    Work->Assets->Sounds[Work->ID.Value].State = Work->FinalState;
+    Work->Assets->Slots[Work->ID.Value].Sound = Work->Sound;
+    Work->Assets->Slots[Work->ID.Value].State = Work->FinalState;
 
     EndTaskWithMemory(Work->Task);
 }
@@ -389,7 +389,7 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadSoundWork)
 internal void LoadSound(game_assets *Assets, sound_id ID)
 {
     if(ID.Value &&
-       (AtomicCompareExchangeUInt32((uint32 *)&Assets->Sounds[ID.Value].State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded))
+       (AtomicCompareExchangeUInt32((uint32 *)&Assets->Slots[ID.Value].State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded))
     {
         task_with_memory *Task = BeginTaskWithMemory(Assets->TranState);
         if(Task)
@@ -406,7 +406,7 @@ internal void LoadSound(game_assets *Assets, sound_id ID)
         }
         else
         {
-            Assets->Sounds[ID.Value].State = AssetState_Unloaded;
+            Assets->Slots[ID.Value].State = AssetState_Unloaded;
         }
     }
 }
@@ -440,7 +440,7 @@ internal uint32 GetBestMatchAssetFrom(game_assets *Assets, asset_type_id TypeID,
         if(BestDiff > TotalWeightedDiff)
         {
             BestDiff = TotalWeightedDiff;
-            Result = Asset->SlotID;
+            Result = AssetIndex;
         }
     }
 
@@ -456,9 +456,7 @@ internal uint32 GetRandomSlotFrom(game_assets *Assets, asset_type_id TypeID, ran
     {
         uint32 Count = (Type->OnePastLastAssetIndex - Type->FirstAssetIndex);
         uint32 Choice = RandomChoice(Series, Count);
-
-        asset *Asset = Assets->Assets + Type->FirstAssetIndex + Choice;
-        Result = Asset->SlotID;
+        Result = Type->FirstAssetIndex + Choice;
     }
 
     return(Result);
@@ -471,8 +469,7 @@ internal uint32 GetFirstSlotFrom(game_assets *Assets, asset_type_id TypeID)
     asset_type *Type = Assets->AssetTypes + TypeID;
     if(Type->FirstAssetIndex != Type->OnePastLastAssetIndex)
     {
-        asset *Asset = Assets->Assets + Type->FirstAssetIndex;
-        Result = Asset->SlotID;
+        Result = Type->FirstAssetIndex;
     }
 
     return(Result);
@@ -516,32 +513,6 @@ inline sound_id GetRandomSoundFrom(game_assets *Assets, asset_type_id TypeID, ra
     return(Result);
 }
 
-internal bitmap_id DEBUGAddBitmapInfo(game_assets *Assets, char *FileName, v2 AlignPercentage)
-{
-    Assert(Assets->DEBUGUsedBitmapCount < Assets->BitmapCount);
-    bitmap_id ID = {Assets->DEBUGUsedBitmapCount++};
-
-    asset_bitmap_info *Info = Assets->BitmapInfos + ID.Value;
-    Info->FileName = PushString(&Assets->Arena, FileName);
-    Info->AlignPercentage = AlignPercentage;
-
-    return(ID);
-}
-
-internal sound_id DEBUGAddSoundInfo(game_assets *Assets, char *FileName, u32 FirstSampleIndex, u32 SampleCount)
-{
-    Assert(Assets->DEBUGUsedSoundCount < Assets->SoundCount);
-    sound_id ID = {Assets->DEBUGUsedSoundCount++};
-
-    asset_sound_info *Info = Assets->SoundInfos + ID.Value;
-    Info->FileName = PushString(&Assets->Arena, FileName);
-    Info->FirstSampleIndex = FirstSampleIndex;
-    Info->SampleCount = SampleCount;
-    Info->NextIDToPlay.Value = 0;
-
-    return(ID);
-}
-
 internal void BeginAssetType(game_assets *Assets, asset_type_id TypeID)
 {
     Assert(Assets->DEBUGAssetType == 0);
@@ -551,32 +522,39 @@ internal void BeginAssetType(game_assets *Assets, asset_type_id TypeID)
     Assets->DEBUGAssetType->OnePastLastAssetIndex = Assets->DEBUGAssetType->FirstAssetIndex;
 }
 
-internal void AddBitmapAsset(game_assets *Assets, char *FileName, v2 AlignPercentage = V2(0.5f, 0.5f))
+internal bitmap_id AddBitmapAsset(game_assets *Assets, char *FileName, v2 AlignPercentage = V2(0.5f, 0.5f))
 {
     Assert(Assets->DEBUGAssetType);
     Assert(Assets->DEBUGAssetType->OnePastLastAssetIndex < Assets->AssetCount);
 
-    asset *Asset = Assets->Assets + Assets->DEBUGAssetType->OnePastLastAssetIndex++;
+    bitmap_id Result = {Assets->DEBUGAssetType->OnePastLastAssetIndex++};
+    asset *Asset = Assets->Assets + Result.Value;
     Asset->FirstTagIndex = Assets->DEBUGUsedTagCount;
     Asset->OnePastLastTagIndex = Asset->FirstTagIndex;
-    Asset->SlotID = DEBUGAddBitmapInfo(Assets, FileName, AlignPercentage).Value;
+    Asset->Bitmap.FileName = PushString(&Assets->Arena, FileName);
+    Asset->Bitmap.AlignPercentage = AlignPercentage;
 
     Assets->DEBUGAsset = Asset;
+
+    return(Result);
 }
 
-internal asset *AddSoundAsset(game_assets *Assets, char *FileName, u32 FirstSampleIndex = 0, u32 SampleCount = 0)
+internal sound_id AddSoundAsset(game_assets *Assets, char *FileName, u32 FirstSampleIndex = 0, u32 SampleCount = 0)
 {
     Assert(Assets->DEBUGAssetType);
     Assert(Assets->DEBUGAssetType->OnePastLastAssetIndex < Assets->AssetCount);
 
-    asset *Asset = Assets->Assets + Assets->DEBUGAssetType->OnePastLastAssetIndex++;
+    sound_id Result = {Assets->DEBUGAssetType->OnePastLastAssetIndex++};
+    asset *Asset = Assets->Assets + Result.Value;
     Asset->FirstTagIndex = Assets->DEBUGUsedTagCount;
     Asset->OnePastLastTagIndex = Asset->FirstTagIndex;
-    Asset->SlotID = DEBUGAddSoundInfo(Assets, FileName, FirstSampleIndex, SampleCount).Value;
-
+    Asset->Sound.FileName = PushString(&Assets->Arena, FileName);
+    Asset->Sound.FirstSampleIndex = FirstSampleIndex;
+    Asset->Sound.SampleCount = SampleCount;
+    Asset->Sound.NextIDToPlay.Value = 0;
     Assets->DEBUGAsset = Asset;
 
-    return(Asset);
+    return(Result);
 }
 
 internal void AddTag(game_assets *Assets, asset_tag_id ID, real32 Value)
@@ -610,16 +588,9 @@ internal game_assets * AllocateGameAssets(memory_arena *Arena, memory_index Size
     }
     Assets->TagRange[Tag_FacingDirection] = Tau32;
 
-    Assets->BitmapCount = 256 * Asset_Count;
-    Assets->BitmapInfos = PushArray(Arena, Assets->BitmapCount, asset_bitmap_info);
-    Assets->Bitmaps = PushArray(Arena, Assets->BitmapCount, asset_slot);
-
-    Assets->SoundCount = 256 * Asset_Count;
-    Assets->SoundInfos = PushArray(Arena, Assets->SoundCount, asset_sound_info);
-    Assets->Sounds = PushArray(Arena, Assets->SoundCount, asset_slot);
-
-    Assets->AssetCount = Assets->SoundCount + Assets->BitmapCount;
+    Assets->AssetCount = 2 * 256 * Asset_Count;
     Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
+    Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
 
     Assets->TagCount = 1024*Asset_Count;
     Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
@@ -725,7 +696,7 @@ internal game_assets * AllocateGameAssets(memory_arena *Arena, memory_index Size
     u32 OneMusicChunk = 10 * 48000;
     u32 TotalMusicSampleCount = 7468095;
     BeginAssetType(Assets, Asset_Music);
-    asset *LastMusic = 0;
+    sound_id LastMusic = {0};
     for(u32 FirstSampleIndex = 0; FirstSampleIndex < TotalMusicSampleCount; FirstSampleIndex += OneMusicChunk)
     {
         u32 SampleCount = TotalMusicSampleCount - FirstSampleIndex;
@@ -733,10 +704,10 @@ internal game_assets * AllocateGameAssets(memory_arena *Arena, memory_index Size
         {
             SampleCount = OneMusicChunk;
         }
-        asset *ThisMusic = AddSoundAsset(Assets, "test3/music_test.wav", FirstSampleIndex, SampleCount);
-        if(LastMusic)
+        sound_id ThisMusic = AddSoundAsset(Assets, "test3/music_test.wav", FirstSampleIndex, SampleCount);
+        if(IsValid(LastMusic))
         {
-            Assets->SoundInfos[LastMusic->SlotID].NextIDToPlay.Value = ThisMusic->SlotID;
+            Assets->Assets[LastMusic.Value].Sound.NextIDToPlay = ThisMusic;
         }
         LastMusic = ThisMusic;
     }
