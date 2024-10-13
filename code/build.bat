@@ -10,14 +10,15 @@ set CommonLinkerFlags= -incremental:no -opt:ref user32.lib gdi32.lib winmm.lib
 IF NOT EXIST .\build mkdir .\build
 pushd .\build
 
+del *.pdb > NUL 2> NUL
+
 REM Asset file builder build
-REM cl %CommonCompilerFlags% ..\code\test_asset_builder.cpp /link %CommonLinkerFlags%
+cl %CommonCompilerFlags% -D_CRT_SECURE_NO_WARNINGS ..\code\test_asset_builder.cpp /link %CommonLinkerFlags%
 
 REM 32-bit build
 REM cl %CommonCompilerFlags%  ..\handmade\code\win32_handmade.cpp /link -subsystem:windows,5.1 %CommonLinkerFlags%
 
 REM 64-bit build
-del *.pdb > NUL 2> NUL
 REM Optimisation switches /O2
 echo WAITING FOR PDB > lock.tmp
 cl %CommonCompilerFlags% -O2 -c ..\code\handmade_optimized.cpp -Fohandmade_optimized.obj -LD

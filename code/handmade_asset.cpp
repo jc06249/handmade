@@ -595,8 +595,6 @@ internal game_assets * AllocateGameAssets(memory_arena *Arena, memory_index Size
     Assets->TagCount = 1024*Asset_Count;
     Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
 
-    Assets->DEBUGUsedBitmapCount = 1;
-    Assets->DEBUGUsedSoundCount = 1;
     Assets->DEBUGUsedAssetCount = 1;
 
     BeginAssetType(Assets, Asset_Shadow);
