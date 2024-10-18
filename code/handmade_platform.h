@@ -72,6 +72,7 @@ typedef size_t memory_index;
 typedef float real32;
 typedef double real64;
 
+typedef int8 s8;
 typedef int8 s08;
 typedef int16 s16;
 typedef int32 s32;
@@ -79,6 +80,7 @@ typedef int64 s64;
 typedef bool32 b32;
 
 typedef uint8 u08;
+typedef uint8 u8;
 typedef uint16 u16;
 typedef uint32 u32;
 typedef uint64 u64;

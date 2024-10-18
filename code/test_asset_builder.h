@@ -5,6 +5,8 @@
 #include "handmade_platform.h"
 #include "handmade_asset_type_id.h"
 #include "handmade_file_formats.h"
+#include "handmade_intrinsics.h"
+#include "handmade_math.h"
 
 struct bitmap_id
 {
@@ -16,29 +18,17 @@ struct sound_id
     uint32 Value;
 };
 
-struct asset_bitmap_info
+enum asset_type
 {
-    char *FileName;
-    r32 AlignPercentage[2];
+    AssetType_Sound,
+    AssetType_Bitmap,
 };
 
-struct asset_sound_info
+struct asset_source
 {
+    asset_type Type;
     char *FileName;
     u32 FirstSampleIndex;
-    u32 SampleCount;
-    sound_id NextIDToPlay;
-};
-
-struct asset
-{
-    u64 DataOffset;
-    u32 FirstTagIndex;
-    u32 OnePastLastTagIndex;
-    union {
-        asset_bitmap_info Bitmap;
-        asset_sound_info Sound;
-    };
 };
 
 #define VERY_LARGE_NUMBER 4096
@@ -48,14 +38,15 @@ struct game_assets
     u32 TagCount;
     hha_tag Tags[VERY_LARGE_NUMBER];
 
-    u32 AssetCount;
-    asset Assets[VERY_LARGE_NUMBER];
-
     u32 AssetTypeCount;
     hha_asset_type AssetTypes[Asset_Count];
 
+    u32 AssetCount;
+    asset_source AssetSources[VERY_LARGE_NUMBER];
+    hha_asset Assets[VERY_LARGE_NUMBER];
+
     hha_asset_type *DEBUGAssetType;
-    asset *DEBUGAsset;
+    u32 AssetIndex;
 };
 
 #define TEST_ASSET_BUILDER_H
