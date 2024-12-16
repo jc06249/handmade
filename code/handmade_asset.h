@@ -1,15 +1,5 @@
 #if !defined(HANDMADE_ASSET_H)
 
-struct bitmap_id
-{
-    uint32 Value;
-};
-
-struct sound_id
-{
-    uint32 Value;
-};
-
 struct loaded_sound
 {
     uint32 SampleCount; // NOTE: This is the sample count divided by 8
@@ -39,12 +29,6 @@ struct asset_sound_info
     sound_id NextIDToPlay;
 };
 
-struct asset_tag
-{
-    uint32 ID; // NOTE: Tag ID
-    real32 Value;
-};
-
 struct asset_slot
 {
     asset_state State;
@@ -53,19 +37,6 @@ struct asset_slot
         loaded_bitmap *Bitmap;
         loaded_sound *Sound;
     };
-};
-
-struct asset
-{
-    uint32 FirstTagIndex;
-    uint32 OnePastLastTagIndex;
-
-    union
-    {
-        asset_bitmap_info Bitmap;
-        asset_sound_info Sound;
-    };
-    
 };
 
 struct asset_vector
@@ -79,6 +50,18 @@ struct asset_type
     uint32 OnePastLastAssetIndex;
 };
 
+struct asset_file
+{
+//    platform_file_handle Handle;
+
+    // TODO: If we ever do thread stacks,
+    // AssetTypeArray doesn't need to be kept hereprobably.
+    hha_header Header;
+    hha_asset_type *AssetTypeArray;
+
+    u32 TagBase;
+};
+
 struct game_assets
 {
     // TODO: Not thrilled about this back-pointer
@@ -87,15 +70,19 @@ struct game_assets
 
     real32 TagRange[Tag_Count];
 
+    u32 FileCount;
+    asset_file *Files;
+
     uint32 TagCount;
-    asset_tag *Tags;
+    hha_tag *Tags;
 
     uint32 AssetCount;
-    asset *Assets;
+    hha_asset *Assets;
     asset_slot *Slots;
 
     asset_type AssetTypes[Asset_Count];
-    
+
+    u8 *HHAContents;
 #if 0
     // NOTE: Structured assets
     //hero_bitmaps HeroBitmaps[4];
@@ -124,10 +111,10 @@ inline loaded_sound *GetSound(game_assets *Assets, sound_id ID)
     return(Result);
 }
 
-inline asset_sound_info *GetSoundInfo(game_assets *Assets, sound_id ID)
+inline hha_sound *GetSoundInfo(game_assets *Assets, sound_id ID)
 {
     Assert(ID.Value <= Assets->AssetCount);
-    asset_sound_info *Result = &Assets->Assets[ID.Value].Sound;
+    hha_sound *Result = &Assets->Assets[ID.Value].Sound;
 
     return(Result);
 }
