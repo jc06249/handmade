@@ -765,7 +765,7 @@ internal void TiledRenderGroupToOutput(platform_work_queue *RenderQueue, render_
             Work->ClipRect = ClipRect;
 #if 1
             // NOTE: This is the multi-threaded path
-            PlatformAddEntry(RenderQueue, DoTiledRenderWork, Work);
+            Platform.AddEntry(RenderQueue, DoTiledRenderWork, Work);
 #else
             // NOTE: This is the single-threaded path
             DoTiledRenderWork(RenderQueue, Work);
@@ -773,7 +773,7 @@ internal void TiledRenderGroupToOutput(platform_work_queue *RenderQueue, render_
         }
     }
 
-    PlatformCompleteAllWork(RenderQueue);
+    Platform.CompleteAllWork(RenderQueue);
 }
 
 internal render_group *AllocateRenderGroup(game_assets *Assets, memory_arena *Arena, uint32 MaxPushBufferSize)
