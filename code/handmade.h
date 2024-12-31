@@ -6,6 +6,7 @@
     - Flush all thread queues before reloading DLL!
 
     - Audio
+        - FIX CLICKING BUG AT END OF SAMPLES!!!
         - Sound effect triggers
         - Ambient sounds
         - Music
@@ -223,6 +224,15 @@ inline void ZeroSize(memory_index Size, void *Ptr)
     {
         *Byte++ = 0;
     }
+}
+
+
+inline void Copy(memory_index Size, void* SourceInit, void *DestInit)
+{
+    u8 *Source = (u8 *)SourceInit;
+    u8 *Dest = (u8 *)DestInit;
+
+    while(Size--) {*Dest++ = *Source++;}
 }
 
 #include "handmade_intrinsics.h"

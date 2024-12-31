@@ -29,6 +29,8 @@ struct hha_header
     u64 Tags; //hha_tag[TagCount]
     u64 AssetTypes; // hha_asset_type[AssetTypeCount]
     u64 Assets; //hha_asset[AssetCount]
+
+    // TODO: Primacy numbers for asset files?
 };
 
 struct hha_tag
