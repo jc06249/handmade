@@ -1109,7 +1109,7 @@ internal PLATFORM_GET_ALL_FILE_OF_TYPE_BEGIN(Win32GetAllFilesOfTypeBegin)
     platform_file_group FileGroup = {};
 
     //TODO: Actually implement this!
-    FileGroup.FileCount = 1;
+    FileGroup.FileCount = 3;
 
     return(FileGroup);
 }
@@ -1122,7 +1122,19 @@ internal PLATFORM_GET_ALL_FILE_OF_TYPE_END(Win32GetAllFilesOfTypeEnd)
 internal PLATFORM_OPEN_FILE(Win32OpenFile)
 {
     // TODO: Actually implement this!
-    char *FileName = "test.hha";
+    char *FileName = "invalid.hha";
+    if(FileIndex == 0)
+    {
+        FileName = "test1.hha";
+    }
+    else if(FileIndex == 1)
+    {
+        FileName = "test2.hha";
+    }
+    else if(FileIndex == 2)
+    {
+        FileName = "test3.hha";
+    }
 
     // TODO: If we want, someday, make an actual arena used by Win32
     win32_platform_file_handle *Result = (win32_platform_file_handle *)VirtualAlloc(0, sizeof(win32_platform_file_handle), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);

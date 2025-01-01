@@ -110,12 +110,15 @@ internal void OutputPlayingSounds(audio_state *AudioState, game_sound_output_buf
             loaded_sound *LoadedSound = GetSound(Assets, PlayingSound->ID);
             if(LoadedSound)
             {
-                hha_sound *Info = GetSoundInfo(Assets, PlayingSound->ID);
-                PrefetchSound(Assets, Info->NextIDToPlay);
+                sound_id NextSoundInChain = GetNextSoundInChain(Assets, PlayingSound->ID);
+                PrefetchSound(Assets, NextSoundInChain);
 
                 v2 Volume = PlayingSound->CurrentVolume;
                 v2 dVolume = SecondsPerSample * PlayingSound->dCurrentVolume;
                 v2 dVolumeChunk = 4.0f * dVolume;
+                // TODO: If you use the 1.9f version, it can clearly repro a bug
+                // in the accuracy of the samples played calcs!
+                // real32 dSample = PlayingSound->dSample * 1.9f;
                 real32 dSample = PlayingSound->dSample;
                 real32 dSampleChunk = 4.0f * dSample;
 
@@ -229,9 +232,9 @@ internal void OutputPlayingSounds(audio_state *AudioState, game_sound_output_buf
 
                 if(ChunksToMix == ChunksRemainingInSound)
                 {
-                    if(IsValid(Info->NextIDToPlay))
+                    if(IsValid(NextSoundInChain))
                     {
-                        PlayingSound->ID = Info->NextIDToPlay;
+                        PlayingSound->ID = NextSoundInChain;
                         Assert(PlayingSound->SamplesPlayed >= LoadedSound->SampleCount);
                         PlayingSound->SamplesPlayed -= (real32)LoadedSound->SampleCount;
                         if(PlayingSound->SamplesPlayed < 0)
