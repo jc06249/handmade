@@ -1104,45 +1104,85 @@ struct win32_platform_file_handle
     HANDLE Win32Handle;
 };
 
+struct win32_platform_file_group
+{
+    platform_file_group H;
+    HANDLE FindHandle;
+    WIN32_FIND_DATAA FindData;
+};
+
 internal PLATFORM_GET_ALL_FILE_OF_TYPE_BEGIN(Win32GetAllFilesOfTypeBegin)
 {
-    platform_file_group FileGroup = {};
+    win32_platform_file_group *Win32FileGroup = (win32_platform_file_group *)VirtualAlloc(0, sizeof(win32_platform_file_group), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 
-    //TODO: Actually implement this!
-    FileGroup.FileCount = 3;
+    char *TypeAt = Type;
+    char WildCard[32] = "*.";
+    for(u32 WildCardIndex = 2; WildCardIndex < sizeof(WildCard); ++WildCardIndex)
+    {
+        WildCard[WildCardIndex] = *TypeAt;
+        if(*TypeAt == 0)
+        {
+            break;
+        }
 
-    return(FileGroup);
+        ++TypeAt;
+    }
+    WildCard[sizeof(WildCard) - 1] = 0;
+
+    Win32FileGroup->H.FileCount = 0;
+
+    WIN32_FIND_DATA FindData;
+
+    HANDLE FindHandle = FindFirstFileA(WildCard, &FindData);
+    while(FindHandle != INVALID_HANDLE_VALUE)
+    {
+        ++Win32FileGroup->H.FileCount;
+
+        if(!FindNextFileA(FindHandle, &FindData))
+        {
+            break;
+        }
+    }
+    FindClose(FindHandle);
+
+    Win32FileGroup->FindHandle = FindFirstFileA(WildCard, &Win32FileGroup->FindData);
+
+    return((platform_file_group *)Win32FileGroup);
 }
 
 internal PLATFORM_GET_ALL_FILE_OF_TYPE_END(Win32GetAllFilesOfTypeEnd)
 {
+    win32_platform_file_group *Win32FileGroup = (win32_platform_file_group *)FileGroup;
+    if(Win32FileGroup)
+    {
+        FindClose(Win32FileGroup->FindHandle);
 
+        VirtualFree(Win32FileGroup, 0, MEM_RELEASE);
+    }
 }
 
-internal PLATFORM_OPEN_FILE(Win32OpenFile)
+internal PLATFORM_OPEN_FILE(Win32OpenNextFile)
 {
-    // TODO: Actually implement this!
-    char *FileName = "invalid.hha";
-    if(FileIndex == 0)
-    {
-        FileName = "test1.hha";
-    }
-    else if(FileIndex == 1)
-    {
-        FileName = "test2.hha";
-    }
-    else if(FileIndex == 2)
-    {
-        FileName = "test3.hha";
-    }
+    win32_platform_file_group *Win32FileGroup = (win32_platform_file_group *)FileGroup;
+    win32_platform_file_handle *Result = 0;
 
-    // TODO: If we want, someday, make an actual arena used by Win32
-    win32_platform_file_handle *Result = (win32_platform_file_handle *)VirtualAlloc(0, sizeof(win32_platform_file_handle), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-
-    if(Result)
+    if(Win32FileGroup->FindHandle != INVALID_HANDLE_VALUE)
     {
-        Result->Win32Handle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-        Result->H.NoErrors = (Result->Win32Handle != INVALID_HANDLE_VALUE);
+        // TODO: If we want, someday, make an actual arena used by Win32
+        Result = (win32_platform_file_handle *)VirtualAlloc(0, sizeof(win32_platform_file_handle), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+
+        if(Result)
+        {
+            char *FileName = Win32FileGroup->FindData.cFileName;
+            Result->Win32Handle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+            Result->H.NoErrors = (Result->Win32Handle != INVALID_HANDLE_VALUE);
+        }
+
+        if(!FindNextFile(Win32FileGroup->FindHandle, &Win32FileGroup->FindData))
+        {
+            FindClose(Win32FileGroup->FindHandle);
+            Win32FileGroup->FindHandle = INVALID_HANDLE_VALUE;
+        }
     }
 
     return((platform_file_handle *)Result);
@@ -1353,7 +1393,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
 
             GameMemory.PlatformAPI.GetAllFilesOfTypeBegin = Win32GetAllFilesOfTypeBegin;
             GameMemory.PlatformAPI.GetAllFilesOfTypeEnd = Win32GetAllFilesOfTypeEnd;
-            GameMemory.PlatformAPI.OpenFile = Win32OpenFile;
+            GameMemory.PlatformAPI.OpenNextFile = Win32OpenNextFile;
             GameMemory.PlatformAPI.ReadDataFromFile = Win32ReadDataFromFile;
             GameMemory.PlatformAPI.FileError = Win32FileError;
 
