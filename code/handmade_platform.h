@@ -129,6 +129,14 @@ inline uint32 SafeTruncateUInt64(uint64 Value){
     return(Result);
 }
 
+inline uint16 SafeTruncateToUInt16(int32 Value){
+    // TODO: Defines for maximum values
+    Assert(Value <= 65535);
+    Assert(Value >= 0);
+    uint16 Result = (uint16)Value;
+    return(Result);
+}
+
 /*
     NOTE: Services that the platform layer provides to the game
 */

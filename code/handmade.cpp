@@ -427,9 +427,9 @@ internal loaded_bitmap MakeEmptyBitmap(memory_arena *Arena, int32 Width, int32 H
 {
     loaded_bitmap Result = {};
 
-    Result.Width = Width;
-    Result.Height = Height;
-    Result.Pitch = Result.Width * BITMAP_BYTES_PER_PIXEL;
+    Result.Width = SafeTruncateToUInt16(Width);
+    Result.Height =  SafeTruncateToUInt16(Height);
+    Result.Pitch =  SafeTruncateToUInt16(Result.Width * BITMAP_BYTES_PER_PIXEL);
     int32 TotalBitmapSize = Width * Height * BITMAP_BYTES_PER_PIXEL;
     Result.Memory = PushSize(Arena, TotalBitmapSize, 16);
     if(ClearToZero)
@@ -817,9 +817,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             SubArena(&Task->Arena, &TranState->TranArena, Megabytes(1));
         }
 
-        TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(64), TranState);
+        TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(3), TranState);
 
-        GameState->Music = 0; //PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
+        GameState->Music = PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
 
         // TODO: Pick a real number here!
         TranState->GroundBufferCount = 256;
@@ -961,9 +961,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     loaded_bitmap DrawBuffer_ = {};
     loaded_bitmap *DrawBuffer = &DrawBuffer_;
-    DrawBuffer->Width = Buffer->Width;
-    DrawBuffer->Height = Buffer->Height;
-    DrawBuffer->Pitch = Buffer->Pitch;
+    DrawBuffer->Width =  SafeTruncateToUInt16(Buffer->Width);
+    DrawBuffer->Height =  SafeTruncateToUInt16(Buffer->Height);
+    DrawBuffer->Pitch =  SafeTruncateToUInt16(Buffer->Pitch);
     DrawBuffer->Memory = Buffer->Memory;
 
 #if 0
