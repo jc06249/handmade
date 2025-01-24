@@ -137,6 +137,14 @@ inline uint16 SafeTruncateToUInt16(int32 Value){
     return(Result);
 }
 
+inline int16 SafeTruncateToInt16(int32 Value){
+    // TODO: Defines for maximum values
+    Assert(Value <= 32767);
+    Assert(Value >= -32768);
+    uint16 Result = (uint16)Value;
+    return(Result);
+}
+
 /*
     NOTE: Services that the platform layer provides to the game
 */
@@ -283,8 +291,15 @@ struct platform_work_queue;
 #define PLATFORM_WORK_QUEUE_CALLBACK(name) void name(platform_work_queue *Queue, void *Data)
 typedef PLATFORM_WORK_QUEUE_CALLBACK(platform_work_queue_callback);
 
+#define PLATFORM_ALLOCATE_MEMORY(name) void *name(memory_index Size)
+typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory);
+
+#define PLATFORM_DEALLOCATE_MEMORY(name) void name(void *Memory)
+typedef PLATFORM_DEALLOCATE_MEMORY(platform_deallocate_memory);
+
 typedef void platform_add_entry(platform_work_queue *Queue, platform_work_queue_callback *Callback, void *Data);
 typedef void platform_complete_all_work(platform_work_queue *Queue);
+
 
 typedef struct platform_api
 {
@@ -297,6 +312,8 @@ typedef struct platform_api
     platform_read_data_from_file *ReadDataFromFile;
     platform_file_error *FileError;
 
+    platform_allocate_memory *AllocateMemory;
+    platform_deallocate_memory *DeallocateMemory;
 
     debug_platform_free_file_memory *DEBUGFreeFileMemory;
     debug_platform_read_entire_file *DEBUGReadEntireFile;
