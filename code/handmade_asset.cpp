@@ -7,7 +7,6 @@ struct load_asset_work
     u64 Offset;
     u64 Size;
     void *Destination;
-    asset_memory_header *Header;
 
     u32 FinalState;
 };
@@ -25,6 +24,7 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork)
         // TODO: Should we actually fill in bogus data here and set to final state anyway?
         ZeroSize(Work->Size, Work->Destination);
     }
+
     Work->Asset->State = Work->FinalState;
 
     EndTaskWithMemory(Work->Task);
@@ -38,7 +38,7 @@ inline platform_file_handle *GetFileHandleFor(game_assets *Assets, u32 FileIndex
     return(Result);
 }
 
-internal asset_memory_block *InsertBlock(asset_memory_block *Prev, memory_index Size, void *Memory)
+internal asset_memory_block *InsertBlock(asset_memory_block *Prev, u64 Size, void *Memory)
 {
     Assert(Size > sizeof(asset_memory_block));
     asset_memory_block *Block = (asset_memory_block *)Memory;
@@ -58,8 +58,8 @@ inline void InsertAssetHeaderAtFront(game_assets *Assets, asset_memory_header *H
     Header->Prev = Sentinel;
     Header->Next = Sentinel->Next;
 
-    Sentinel->Next->Prev = Header;
-    Sentinel->Prev->Next = Header;
+    Header->Next->Prev = Header;
+    Header->Prev->Next = Header;
 }
 
 inline void RemoveAssetHeaderFromList(asset_memory_header *Header)
@@ -95,6 +95,7 @@ internal asset_memory_block *FindBlockForSize(game_assets *Assets, memory_index 
 internal b32 MergeIfPossible(game_assets *Assets, asset_memory_block *First, asset_memory_block *Second)
 {
     b32 Result = false;
+
     if((First != &Assets->MemorySentinel) &&
        (Second != &Assets->MemorySentinel))
     {
@@ -117,7 +118,7 @@ internal b32 MergeIfPossible(game_assets *Assets, asset_memory_block *First, ass
     return(Result);
 }
 
-internal void * AcquireAssetMemory(game_assets *Assets, memory_index Size)
+internal void *AcquireAssetMemory(game_assets *Assets, memory_index Size)
 {
     void *Result = 0;
 
@@ -139,7 +140,7 @@ internal void * AcquireAssetMemory(game_assets *Assets, memory_index Size)
             }
             else
             {
-                // TOOD: Actually record the unused portion of the memory
+                // TODO: Actually record the unused portion of the memory
                 // in a block so that we can do the merge on blocks when neighbors
                 // are freed.
             }
@@ -163,18 +164,18 @@ internal void * AcquireAssetMemory(game_assets *Assets, memory_index Size)
 
                     Block = (asset_memory_block *)Asset->Header - 1;
                     Block->Flags &= ~AssetMemory_Used;
+
                     if(MergeIfPossible(Assets, Block->Prev, Block))
                     {
                         Block = Block->Prev;
                     }
 
-                    MergeIfPossible(Assets,Block, Block->Next);
+                    MergeIfPossible(Assets, Block, Block->Next);
 
                     Asset->State = AssetState_Unloaded;
                     Asset->Header = 0;
                     break;
                 }
-
             }
         }
     }
@@ -213,7 +214,7 @@ internal void LoadBitmap(game_assets *Assets, bitmap_id ID, b32 Locked)
             u32 Height = Info->Dim[1];
             Size.Section = 4 * Width;
             Size.Data = Height * Size.Section;
-            Size.Total += Size.Data + sizeof(asset_memory_header);
+            Size.Total = Size.Data + sizeof(asset_memory_header);
 
             Asset->Header = (asset_memory_header *)AcquireAssetMemory(Assets, Size.Total);
 
@@ -265,7 +266,7 @@ internal void LoadSound(game_assets *Assets, sound_id ID)
             asset_memory_size Size = {};
             Size.Section = Info->SampleCount * sizeof(int16);
             Size.Data = Info->ChannelCount * Size.Section;
-            Size.Total += Size.Data + sizeof(asset_memory_header);
+            Size.Total = Size.Data + sizeof(asset_memory_header);
 
             Asset->Header = (asset_memory_header *)AcquireAssetMemory(Assets, Size.Total);
             loaded_sound *Sound = &Asset->Header->Sound;
@@ -297,7 +298,7 @@ internal void LoadSound(game_assets *Assets, sound_id ID)
         }
         else
         {
-            Asset->State = AssetState_Unloaded;
+            Assets->Assets[ID.Value].State = AssetState_Unloaded;
         }
     }
 }
@@ -454,7 +455,7 @@ internal game_assets *AllocateGameAssets(memory_arena *Arena, memory_index Size,
                 Platform.FileError(&File->Handle, "HHA file has an invalid magic value.");
             }
 
-            if(File->Header.Version != HHA_VERSION)
+            if(File->Header.Version > HHA_VERSION)
             {
                 Platform.FileError(&File->Handle, "HHA file is of a later version.");
             }
